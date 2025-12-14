@@ -133,6 +133,15 @@ const useNotificationQueue = () => {
     return id;
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   return { notifications, addNotification };
 };
 
@@ -204,6 +213,12 @@ export default function App() {
 
   const ritualInterval = useRef(null);
   const { notifications, addNotification } = useNotificationQueue();
+  const addNotificationRef = useRef(addNotification);
+  
+  // Keep ref in sync
+  useEffect(() => {
+    addNotificationRef.current = addNotification;
+  }, [addNotification]);
 
   // Check daily streak
   useEffect(() => {
@@ -227,13 +242,18 @@ export default function App() {
           triggerHaptic('success');
         }
         
-        addNotification(streakMessage, 'success');
+        // Use ref to avoid closure issues
+        if (addNotificationRef.current) {
+          addNotificationRef.current(streakMessage, 'success');
+        }
       } else if (daysSince > 1) {
         setUserData(prev => ({ ...prev, streak: 1, lastCheckIn: today }));
-        addNotification('Streak reset. Start fresh.', 'info');
+        if (addNotificationRef.current) {
+          addNotificationRef.current('Streak reset. Start fresh.', 'info');
+        }
       }
     }
-  }, []);
+  }, [userData.lastCheckIn, userData.streak]);
 
   // Save to localStorage
   useEffect(() => {

@@ -982,13 +982,13 @@ export default function App() {
         >
            <div className="p-3 sm:p-4 rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/30 text-emerald-300 group-hover:from-emerald-500/50 group-hover:to-teal-500/50 transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] relative">
              <MapPin className="w-6 h-6 sm:w-7 sm:h-7 relative z-10" />
-             {nearbySanctuaries.length > 0 && (
+             {(nearbySanctuaries?.length || 0) > 0 && (
                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-black animate-pulse z-10" />
              )}
            </div>
            <span className="font-serif text-white text-sm sm:text-base group-hover:text-emerald-300 transition-colors">Sanctuary</span>
-           {nearbySanctuaries.length > 0 ? (
-             <span className="font-mono text-xs text-emerald-400/70">{nearbySanctuaries.length} nearby</span>
+           {(nearbySanctuaries?.length || 0) > 0 ? (
+             <span className="font-mono text-xs text-emerald-400/70">{(nearbySanctuaries?.length || 0)} nearby</span>
            ) : (
              <span className="font-mono text-xs text-white/50 hidden sm:block">Find nearby covens</span>
            )}
@@ -1484,7 +1484,7 @@ export default function App() {
           )}
 
           {/* Render nearby sanctuaries */}
-          {nearbySanctuaries.map((sanctuary, index) => {
+          {(nearbySanctuaries || []).map((sanctuary, index) => {
             const pixel = latLngToPixel(sanctuary.lat, sanctuary.lng, mapCenter);
             return (
               <div
@@ -1539,7 +1539,7 @@ export default function App() {
             <div>
               <h3 className="text-white font-serif text-lg mb-1">Ghost Mode Active</h3>
               <p className="text-white/60 text-xs leading-relaxed">
-                Your exact location is fuzzed by 400m. {nearbySanctuaries.length} nearby sanctuaries detected.
+                Your exact location is fuzzed by 400m. {(nearbySanctuaries?.length || 0)} nearby sanctuaries detected.
               </p>
             </div>
           </GlassCard>

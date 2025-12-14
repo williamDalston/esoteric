@@ -67,13 +67,14 @@ const BOND_PATTERNS = [
 ];
 
 // --- Utility Components ---
-const GlassCard = ({ children, className = "", intense = false, hoverable = false, onClick }) => (
+const GlassCard = ({ children, className = "", intense = false, hoverable = false, onClick, glowing = false }) => (
   <div 
     className={`
-      backdrop-blur-xl border border-white/10 rounded-3xl transition-all duration-500 
-      ${intense ? 'bg-white/10 shadow-[0_0_30px_rgba(255,255,255,0.1)]' : 'bg-black/40'} 
-      ${hoverable ? 'hover:border-white/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.2)] hover:scale-[1.02] cursor-pointer active:scale-[0.98]' : ''}
+      glass-depth rounded-3xl transition-all duration-500 relative
+      ${intense ? 'bg-white/10 shadow-[0_0_40px_rgba(168,85,247,0.15)]' : ''} 
+      ${hoverable ? 'hover-glow hover:border-white/20 cursor-pointer active:scale-[0.98]' : ''}
       ${onClick ? 'cursor-pointer' : ''}
+      ${glowing ? 'animate-breathe' : ''}
       ${className}
     `}
     onClick={onClick}
@@ -81,22 +82,59 @@ const GlassCard = ({ children, className = "", intense = false, hoverable = fals
     tabIndex={onClick ? 0 : undefined}
     onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(e); } : undefined}
   >
+    {/* Gradient border overlay */}
+    <div className="absolute inset-0 rounded-3xl gradient-border pointer-events-none" />
     {children}
   </div>
 );
 
-const Button = ({ children, onClick, variant = 'primary', className = "", disabled = false, loading = false }) => {
-  const base = "px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-mono text-xs sm:text-sm tracking-wider uppercase transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black min-h-[44px]";
-  const styles = {
-    primary: "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg hover:shadow-purple-500/50 border border-white/10 hover:border-white/30 hover:scale-105 animate-gradient",
-    secondary: "bg-white/5 border border-white/20 text-white hover:bg-white/10 hover:border-white/30 hover:scale-105",
-    ghost: "text-white/60 hover:text-white hover:bg-white/5 hover:scale-105",
-    danger: "bg-gradient-to-r from-red-900 to-red-600 text-white border border-red-500/30 hover:border-red-400/50 hover:scale-105"
+const Button = ({ children, onClick, variant = 'primary', className = "", disabled = false, loading = false, size = 'default' }) => {
+  const base = "relative overflow-hidden font-mono tracking-wider uppercase transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black ripple";
+  
+  const sizes = {
+    sm: "px-3 py-2 text-xs rounded-lg min-h-[36px]",
+    default: "px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm rounded-xl min-h-[44px]",
+    lg: "px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base rounded-2xl min-h-[52px]"
   };
+  
+  const styles = {
+    primary: `
+      bg-gradient-to-r from-purple-600 via-purple-500 to-indigo-600 text-white 
+      shadow-[0_4px_20px_rgba(168,85,247,0.4)] hover:shadow-[0_8px_30px_rgba(168,85,247,0.6)]
+      border border-purple-400/30 hover:border-purple-300/50 
+      hover:scale-[1.02] hover:-translate-y-0.5
+      animate-gradient bg-[length:200%_200%]
+    `,
+    secondary: `
+      bg-white/5 border border-white/20 text-white 
+      hover:bg-white/10 hover:border-white/40 
+      hover:scale-[1.02] hover:-translate-y-0.5
+      shadow-[0_4px_15px_rgba(0,0,0,0.3)]
+    `,
+    ghost: `
+      text-white/60 hover:text-white hover:bg-white/10 
+      hover:scale-[1.02]
+      border border-transparent hover:border-white/10
+    `,
+    danger: `
+      bg-gradient-to-r from-red-700 via-red-600 to-rose-600 text-white 
+      border border-red-400/30 hover:border-red-300/50 
+      shadow-[0_4px_20px_rgba(239,68,68,0.3)] hover:shadow-[0_8px_30px_rgba(239,68,68,0.5)]
+      hover:scale-[1.02] hover:-translate-y-0.5
+    `,
+    gold: `
+      bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 text-black font-semibold
+      border border-amber-400/50 hover:border-amber-300/70
+      shadow-[0_4px_20px_rgba(251,191,36,0.4)] hover:shadow-[0_8px_30px_rgba(251,191,36,0.6)]
+      hover:scale-[1.02] hover:-translate-y-0.5
+      animate-gradient bg-[length:200%_200%]
+    `
+  };
+  
   return (
     <button 
       onClick={onClick} 
-      className={`${base} ${styles[variant]} ${className}`} 
+      className={`${base} ${sizes[size]} ${styles[variant]} ${className}`} 
       disabled={disabled || loading}
       aria-busy={loading}
     >
@@ -104,9 +142,12 @@ const Button = ({ children, onClick, variant = 'primary', className = "", disabl
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
         {children}
       </span>
-      {variant === 'primary' && !loading && (
-        <span className="absolute inset-0 bg-gradient-to-r from-purple-400/0 via-white/10 to-purple-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+      {/* Shine effect */}
+      {(variant === 'primary' || variant === 'gold') && !loading && (
+        <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></span>
       )}
+      {/* Glow pulse on hover */}
+      <span className="absolute inset-0 rounded-inherit opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-purple-500/20 via-transparent to-indigo-500/20 blur-xl"></span>
     </button>
   );
 };
@@ -906,30 +947,71 @@ export default function App() {
     );
   };
 
-  const Dashboard = () => (
-    <div className="min-h-screen pb-28 sm:pb-24 p-4 sm:p-6 space-y-4 sm:space-y-6 animate-in slide-in-from-bottom-10 duration-500 relative">
-      <div className="absolute inset-0 particle-bg opacity-20" />
-      
-        <div className="flex justify-between items-center pt-4 sm:pt-8 relative z-10">
-        <div className="flex-1 min-w-0">
-          <h2 className="font-serif text-2xl sm:text-3xl text-white mb-1 bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent truncate">
-            The Loop
-          </h2>
-          <p className="text-white/50 text-xs font-mono tracking-wider truncate flex items-center gap-2">
-            <span>{new Date().toLocaleDateString()}</span>
-            <span className="text-white/30">•</span>
-            <span className="text-purple-400">MOON WAXING</span>
-          </p>
+  const Dashboard = () => {
+    // Time-based greeting
+    const getGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 6) return { text: "Night Owl", icon: "🌙", mood: "The veil is thin." };
+      if (hour < 12) return { text: "Good Morning", icon: "✨", mood: "A fresh start awaits." };
+      if (hour < 17) return { text: "Good Afternoon", icon: "☀️", mood: "Power hour beckons." };
+      if (hour < 21) return { text: "Good Evening", icon: "🌅", mood: "Reflect and manifest." };
+      return { text: "Good Night", icon: "🔮", mood: "The cosmos speaks." };
+    };
+    
+    const greeting = getGreeting();
+    const moonPhases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
+    const currentMoonPhase = moonPhases[new Date().getDate() % 8];
+    
+    return (
+      <div className="min-h-screen pb-28 sm:pb-24 p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in slide-in-from-bottom-10 duration-500 relative">
+        {/* Starfield background */}
+        <div className="absolute inset-0 starfield" />
+        <div className="absolute inset-0 particle-bg opacity-20" />
+        
+        {/* Floating orbs */}
+        <div className="floating-orb w-64 h-64 bg-purple-600/20 -top-32 -left-32" />
+        <div className="floating-orb w-48 h-48 bg-indigo-600/15 top-1/2 -right-24" style={{ animationDelay: '5s' }} />
+        
+        <div className="flex justify-between items-start pt-4 sm:pt-8 relative z-10">
+          <div className="flex-1 min-w-0">
+            <p className="text-white/50 text-xs font-mono tracking-wider mb-1 flex items-center gap-2">
+              <span>{greeting.icon}</span>
+              <span className="uppercase">{greeting.text}</span>
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl text-white mb-1 truncate neon-text" style={{ textShadow: '0 0 20px rgba(168,85,247,0.5), 0 0 40px rgba(168,85,247,0.3)' }}>
+              The Loop
+            </h2>
+            <p className="text-white/40 text-xs font-mono tracking-wider truncate flex items-center gap-2">
+              <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+              <span className="text-white/20">•</span>
+              <span className="text-purple-400 flex items-center gap-1">
+                {currentMoonPhase} <span className="hidden sm:inline">Waxing</span>
+              </span>
+            </p>
+            <p className="text-white/30 text-xs font-serif italic mt-1 hidden sm:block">{greeting.mood}</p>
+          </div>
+          
+          {/* Streak badge - enhanced */}
+          <div 
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-2xl shrink-0 ml-2 cursor-default transition-all duration-500 ${
+              userData.streak >= 7 
+                ? 'bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-400/40 shadow-[0_0_20px_rgba(249,115,22,0.3)]' 
+                : 'glass-enhanced border border-orange-500/20'
+            }`}
+            title={`${userData.streak} day streak`}
+          >
+            <div className="relative">
+              <Flame className={`w-5 h-5 sm:w-6 sm:h-6 text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.6)] ${userData.streak >= 7 ? 'animate-pulse' : ''}`} />
+              {userData.streak >= 7 && (
+                <div className="absolute inset-0 bg-orange-400/30 rounded-full blur-md animate-pulse" />
+              )}
+            </div>
+            <div className="text-right">
+              <span className="font-mono text-lg sm:text-xl font-bold text-white block leading-none counter">{userData.streak}</span>
+              <span className="font-mono text-[10px] text-white/50 uppercase tracking-wider">day{userData.streak !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
         </div>
-        <div 
-          className="flex items-center gap-2 glass-enhanced px-3 sm:px-4 py-2 rounded-full border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:scale-105 group shrink-0 ml-2 cursor-default"
-          title={`${userData.streak} day streak`}
-        >
-          <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 group-hover:text-orange-300 transition-colors drop-shadow-[0_0_10px_rgba(249,115,22,0.5)] group-hover:animate-pulse" />
-          <span className="font-mono text-sm font-bold text-white">{userData.streak}</span>
-          <span className="font-mono text-xs text-white/60 ml-1 hidden sm:inline">days</span>
-        </div>
-      </div>
 
       <GlassCard className="p-6 sm:p-8 relative overflow-hidden group cursor-pointer" intense hoverable onClick={startRitual}>
         <div className="absolute inset-0 bg-gradient-to-r from-purple-900/50 via-indigo-900/50 to-blue-900/50 opacity-50 group-hover:opacity-100 transition-opacity duration-1000 animate-gradient" />
@@ -1040,7 +1122,8 @@ export default function App() {
         </GlassCard>
       </div>
     </div>
-  );
+    );
+  };
 
   const RitualScreen = () => (
     <div 

@@ -229,6 +229,9 @@ export default function App() {
   });
   
   const [view, setView] = useState('loading'); // loading, welcome, mood, dashboard, ritual, result, altar, sanctuary, shadowSend, bondRoast
+  const [prevView, setPrevView] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [confettiActive, setConfettiActive] = useState(false);
   const [currentMood, setCurrentMood] = useState(null);
   const [ritualProgress, setRitualProgress] = useState(0);
   const [reading, setReading] = useState(null);
@@ -264,6 +267,23 @@ export default function App() {
     addNotificationRef.current = addNotification;
   }, [addNotification]);
 
+  // Smooth view transitions
+  const changeView = useCallback((newView) => {
+    if (newView === view) return;
+    setIsTransitioning(true);
+    setPrevView(view);
+    setTimeout(() => {
+      setView(newView);
+      setTimeout(() => setIsTransitioning(false), 300);
+    }, 150);
+  }, [view]);
+
+  // Confetti effect
+  const triggerConfetti = useCallback(() => {
+    setConfettiActive(true);
+    setTimeout(() => setConfettiActive(false), 3000);
+  }, []);
+
   // Check daily streak
   useEffect(() => {
     const today = new Date().toDateString();
@@ -273,17 +293,20 @@ export default function App() {
         const newStreak = userData.streak + 1;
         setUserData(prev => ({ ...prev, streak: newStreak, lastCheckIn: today }));
         
-        // Celebrate streak milestones
+        // Celebrate streak milestones with confetti
         let streakMessage = `Streak continues! Day ${newStreak}`;
         if (newStreak === 7) {
           streakMessage = `🔥 7-day streak! A week of dedication.`;
           triggerHaptic('success');
+          triggerConfetti();
         } else if (newStreak === 30) {
           streakMessage = `✨ 30 days! You've mastered the ritual.`;
           triggerHaptic('success');
+          triggerConfetti();
         } else if (newStreak === 100) {
           streakMessage = `🌟 100 DAYS! You are a true mystic.`;
           triggerHaptic('success');
+          triggerConfetti();
         }
         
         // Use ref to avoid closure issues
@@ -333,6 +356,36 @@ export default function App() {
     };
   }, []);
 
+  // Swipe gesture handling
+  const swipeStart = useRef({ x: 0, y: 0, time: 0 });
+  const swipeThreshold = 50;
+  const swipeTimeThreshold = 300;
+
+  const handleTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (!swipeStart.current.x) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - swipeStart.current.x;
+    const deltaY = touch.clientY - swipeStart.current.y;
+    const deltaTime = Date.now() - swipeStart.current.time;
+    
+    // Only handle horizontal swipes
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold && deltaTime < swipeTimeThreshold) {
+      // Swipe right (go back)
+      if (deltaX > 0 && (view === 'result' || view === 'altar' || view === 'sanctuary' || view === 'bondRoast')) {
+        changeView('dashboard');
+        triggerHaptic('light');
+      }
+      // Swipe left (forward navigation - could add later)
+    }
+    
+    swipeStart.current = { x: 0, y: 0, time: 0 };
+  }, [view, changeView]);
+
   // Keyboard shortcuts - uses startRitualRef to avoid forward reference
   const startRitualRef = useRef(null);
   
@@ -345,12 +398,12 @@ export default function App() {
           triggerHaptic('light');
         }
         if (view === 'shadowSend' || view === 'bondRoast' || view === 'result') {
-          setView('dashboard');
+          changeView('dashboard');
           triggerHaptic('light');
         }
         if (view === 'ritual') {
           setRitualProgress(0);
-          setView('dashboard');
+          changeView('dashboard');
           triggerHaptic('light');
         }
       }
@@ -360,17 +413,17 @@ export default function App() {
         switch(e.key) {
           case '1':
             e.preventDefault();
-            setView('dashboard');
+            changeView('dashboard');
             triggerHaptic('light');
             break;
           case '2':
             e.preventDefault();
-            setView('altar');
+            changeView('altar');
             triggerHaptic('light');
             break;
           case '3':
             e.preventDefault();
-            setView('sanctuary');
+            changeView('sanctuary');
             triggerHaptic('light');
             break;
           case 'r':
@@ -594,6 +647,10 @@ export default function App() {
       coins: newCoins,
       readings: [...(prev.readings || []), newReading]
     }));
+
+    // Trigger confetti celebration
+    triggerConfetti();
+    triggerHaptic('success');
 
     // Celebrate milestones
     let milestoneMessage = 'Ritual complete. +10 Aether Coins earned.';
@@ -2181,7 +2238,11 @@ export default function App() {
 
   // --- Main Render Switch ---
   return (
-    <div className="bg-black min-h-screen font-sans overflow-hidden relative">
+    <div 
+      className="bg-black min-h-screen font-sans overflow-hidden relative"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Enhanced Dynamic Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
           {/* Mood-based gradient */}
@@ -2241,15 +2302,44 @@ export default function App() {
         </div>
       )}
 
-      {view === 'welcome' && <WelcomeScreen />}
-      {view === 'mood' && <MoodCompass />}
-      {view === 'dashboard' && <Dashboard />}
-      {view === 'ritual' && <RitualScreen />}
-      {view === 'result' && <ResultScreen />}
-      {view === 'altar' && <AltarView />}
-      {view === 'sanctuary' && <SanctuaryMap />}
-      {view === 'shadowSend' && <ShadowSendView />}
-      {view === 'bondRoast' && <BondRoastView />}
+      {/* Confetti Celebration */}
+      {confettiActive && (
+        <div className="fixed inset-0 pointer-events-none z-[9999]" aria-hidden="true">
+          {Array.from({ length: 50 }).map((_, i) => {
+            const colors = ['#a855f7', '#ec4899', '#6366f1', '#06b6d4', '#fbbf24', '#10b981'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const left = Math.random() * 100;
+            const delay = Math.random() * 0.5;
+            const duration = 2 + Math.random() * 1;
+            return (
+              <div
+                key={i}
+                className="absolute w-3 h-3 rounded-full"
+                style={{
+                  left: `${left}%`,
+                  top: '-10px',
+                  background: color,
+                  animation: `confetti-fall ${duration}s linear ${delay}s forwards`,
+                  boxShadow: `0 0 10px ${color}80`
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* Page Transitions */}
+      <div className={`transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        {view === 'welcome' && <WelcomeScreen />}
+        {view === 'mood' && <MoodCompass />}
+        {view === 'dashboard' && <Dashboard />}
+        {view === 'ritual' && <RitualScreen />}
+        {view === 'result' && <ResultScreen />}
+        {view === 'altar' && <AltarView />}
+        {view === 'sanctuary' && <SanctuaryMap />}
+        {view === 'shadowSend' && <ShadowSendView />}
+        {view === 'bondRoast' && <BondRoastView />}
+      </div>
       
       {showPaywall && <PaywallModal />}
 
@@ -2259,7 +2349,7 @@ export default function App() {
                <button 
                  onClick={() => {
                    triggerHaptic('light');
-                   setView('dashboard');
+                   changeView('dashboard');
                  }} 
                  className={`transition-all duration-300 active:scale-90 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center relative group ${view === 'dashboard' ? 'text-purple-400' : 'text-white/40 hover:text-white/60'}`}
                  aria-label="Dashboard"
@@ -2273,7 +2363,7 @@ export default function App() {
                <button 
                  onClick={() => {
                    triggerHaptic('light');
-                   setView('altar');
+                   changeView('altar');
                  }} 
                  className={`transition-all duration-300 active:scale-90 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center relative group ${view === 'altar' ? 'text-orange-400' : 'text-white/40 hover:text-white/60'}`}
                  aria-label="Digital Altar"
@@ -2287,7 +2377,7 @@ export default function App() {
                <button 
                  onClick={() => {
                    triggerHaptic('light');
-                   setView('sanctuary');
+                   changeView('sanctuary');
                  }} 
                  className={`transition-all duration-300 active:scale-90 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center relative group ${view === 'sanctuary' ? 'text-emerald-400' : 'text-white/40 hover:text-white/60'}`}
                  aria-label="Sanctuary"

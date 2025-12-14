@@ -175,7 +175,7 @@ export default function App() {
     }
   });
   
-  const [view, setView] = useState('loading'); // loading, mood, dashboard, ritual, result, altar, sanctuary, shadowSend, bondRoast
+  const [view, setView] = useState('loading'); // loading, welcome, mood, dashboard, ritual, result, altar, sanctuary, shadowSend, bondRoast
   const [currentMood, setCurrentMood] = useState(null);
   const [ritualProgress, setRitualProgress] = useState(0);
   const [reading, setReading] = useState(null);
@@ -192,6 +192,15 @@ export default function App() {
   const [bondRoast, setBondRoast] = useState(null);
   const [bondName1, setBondName1] = useState('');
   const [bondName2, setBondName2] = useState('');
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
+    try {
+      return localStorage.getItem('mysticLoop_welcomeSeen') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [konamiCode, setKonamiCode] = useState([]);
+  const [easterEgg, setEasterEgg] = useState(false);
 
   const ritualInterval = useRef(null);
   const { notifications, addNotification } = useNotificationQueue();
@@ -202,8 +211,23 @@ export default function App() {
     if (userData.lastCheckIn !== today) {
       const daysSince = Math.floor((new Date() - new Date(userData.lastCheckIn)) / (1000 * 60 * 60 * 24));
       if (daysSince === 1) {
-        setUserData(prev => ({ ...prev, streak: prev.streak + 1, lastCheckIn: today }));
-        addNotification(`Streak continues! Day ${userData.streak + 1}`, 'success');
+        const newStreak = userData.streak + 1;
+        setUserData(prev => ({ ...prev, streak: newStreak, lastCheckIn: today }));
+        
+        // Celebrate streak milestones
+        let streakMessage = `Streak continues! Day ${newStreak}`;
+        if (newStreak === 7) {
+          streakMessage = `🔥 7-day streak! A week of dedication.`;
+          triggerHaptic('success');
+        } else if (newStreak === 30) {
+          streakMessage = `✨ 30 days! You've mastered the ritual.`;
+          triggerHaptic('success');
+        } else if (newStreak === 100) {
+          streakMessage = `🌟 100 DAYS! You are a true mystic.`;
+          triggerHaptic('success');
+        }
+        
+        addNotification(streakMessage, 'success');
       } else if (daysSince > 1) {
         setUserData(prev => ({ ...prev, streak: 1, lastCheckIn: today }));
         addNotification('Streak reset. Start fresh.', 'info');
@@ -223,7 +247,9 @@ export default function App() {
   // Initialize - reduced delay
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (userData.mood) {
+      if (!hasSeenWelcome) {
+        setView('welcome');
+      } else if (userData.mood) {
         setCurrentMood(MOODS.find(m => m.id === userData.mood));
         setView('dashboard');
       } else {
@@ -232,7 +258,7 @@ export default function App() {
     }, 800);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [hasSeenWelcome, userData.mood]);
   
   // Cleanup ritual interval on unmount
   useEffect(() => {
@@ -250,14 +276,104 @@ export default function App() {
         if (showPaywall) {
           setShowPaywall(false);
         }
-        if (view === 'shadowSend') {
+        if (view === 'shadowSend' || view === 'bondRoast') {
           setView('dashboard');
         }
       }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [showPaywall, view]);
+    const handleKeyDown = (e) => {
+      // ESC to close modals/exit views
+      if (e.key === 'Escape') {
+        if (showPaywall) {
+          setShowPaywall(false);
+          triggerHaptic('light');
+        }
+        if (view === 'shadowSend' || view === 'bondRoast' || view === 'result') {
+          setView('dashboard');
+          triggerHaptic('light');
+        }
+        if (view === 'ritual') {
+          setRitualProgress(0);
+          setView('dashboard');
+          triggerHaptic('light');
+        }
+      }
+      
+      // Quick navigation shortcuts (Ctrl/Cmd + key)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        switch(e.key) {
+          case '1':
+            e.preventDefault();
+            setView('dashboard');
+            triggerHaptic('light');
+            break;
+          case '2':
+            e.preventDefault();
+            setView('altar');
+            triggerHaptic('light');
+            break;
+          case '3':
+            e.preventDefault();
+            setView('sanctuary');
+            triggerHaptic('light');
+            break;
+          case 'r':
+            if (view === 'dashboard') {
+              e.preventDefault();
+              startRitual();
+            }
+            break;
+          case 'b':
+            if (view === 'dashboard') {
+              e.preventDefault();
+              setView('bondRoast');
+              triggerHaptic('light');
+            }
+            break;
+        }
+      }
+      
+      // Spacebar to start ritual when on dashboard
+      if (e.key === ' ' && view === 'dashboard' && !e.target.matches('input, textarea, button')) {
+        e.preventDefault();
+        startRitual();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showPaywall, view, startRitual]);
+  
+  // Konami Code Easter Egg (up up down down left right left right b a)
+  useEffect(() => {
+    const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    
+    const handleKonami = (e) => {
+      const newSequence = [...konamiCode, e.key];
+      const sequenceMatch = konamiSequence.slice(0, newSequence.length);
+      
+      if (JSON.stringify(newSequence) === JSON.stringify(sequenceMatch)) {
+        setKonamiCode(newSequence);
+        if (newSequence.length === konamiSequence.length) {
+          setEasterEgg(true);
+          addNotification('🔮 Secret unlocked! The algorithm sees all...', 'success');
+          triggerHaptic('success');
+          setUserData(prev => ({
+            ...prev,
+            coins: prev.coins + 100,
+            easterEggUnlocked: true
+          }));
+          setKonamiCode([]);
+          setTimeout(() => setEasterEgg(false), 3000);
+        }
+      } else {
+        setKonamiCode([]);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKonami);
+    return () => window.removeEventListener('keydown', handleKonami);
+  }, [konamiCode, addNotification]);
   
   // Handle shadow send URL from query params
   useEffect(() => {
@@ -452,13 +568,36 @@ export default function App() {
     };
     
     setReading(newReading);
+    const newCoins = userData.coins + 10;
+    const newReadingsCount = (userData.readings?.length || 0) + 1;
+    
     setUserData(prev => ({
       ...prev,
-      coins: prev.coins + 10,
+      coins: newCoins,
       readings: [...prev.readings, newReading]
     }));
 
-    addNotification('Ritual complete. +10 Aether Coins earned.', 'success');
+    // Celebrate milestones
+    let milestoneMessage = 'Ritual complete. +10 Aether Coins earned.';
+    
+    // Coin milestones
+    if (newCoins === 100 || newCoins === 250 || newCoins === 500 || newCoins === 1000) {
+      milestoneMessage = `🎉 ${newCoins} Aether Coins! You're building power.`;
+      triggerHaptic('success');
+    }
+    
+    // Reading milestones
+    if (newReadingsCount === 10 || newReadingsCount === 25 || newReadingsCount === 50 || newReadingsCount === 100) {
+      milestoneMessage = `✨ ${newReadingsCount} readings collected! Your grimoire grows.`;
+      triggerHaptic('success');
+    }
+    
+    // Special achievement for first roast or first mystic
+    if (newReadingsCount === 1) {
+      milestoneMessage = 'First reading complete. The void welcomes you.';
+    }
+    
+    addNotification(milestoneMessage, 'success');
     setTimeout(() => setView('result'), 500);
   }, [currentMood, addNotification]);
 
@@ -578,54 +717,193 @@ export default function App() {
   }, [bondName1, bondName2, addNotification]);
 
   // --- Sub-Components (Views) ---
-  const MoodCompass = () => (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 text-center space-y-6 sm:space-y-8 animate-in fade-in duration-700 relative">
-      <div className="absolute inset-0 particle-bg opacity-30" />
-      <div className="space-y-3 sm:space-y-4 relative z-10">
-        <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-indigo-200 animate-gradient px-4">
-          State Your Intent
-        </h1>
-        <p className="font-mono text-xs sm:text-sm text-white/60 tracking-[0.3em] uppercase px-4">
-          The Algorithm is Listening
-        </p>
-        <div className="w-16 sm:w-24 h-1 mx-auto bg-gradient-to-r from-transparent via-purple-500 to-transparent rounded-full mt-3 sm:mt-4" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full max-w-md relative z-10 px-4">
-        {MOODS.map((mood, index) => (
-          <button
-            key={mood.id}
-            onClick={() => handleMoodSelect(mood.id)}
-            disabled={isProcessing}
-            style={{ animationDelay: `${index * 100}ms` }}
-            className={`group relative overflow-hidden p-4 sm:p-6 rounded-2xl border border-white/10 hover:border-white/50 transition-all duration-500 hover:scale-[1.05] hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed min-h-[120px] sm:min-h-[140px]`}
-            aria-label={`Select ${mood.label} mood`}
-          >
-            <div className={`absolute inset-0 opacity-20 bg-gradient-to-br ${mood.color} group-hover:opacity-50 transition-opacity duration-500`} />
-            <div className={`absolute inset-0 bg-gradient-to-br ${mood.color} opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500`} />
-            <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-3">
-              <mood.icon className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:scale-110 transition-transform duration-300 group-hover:drop-shadow-[0_0_15px_currentColor]" />
-              <span className="font-serif text-base sm:text-lg text-white group-hover:text-glow transition-all duration-300">{mood.label}</span>
-            </div>
-          </button>
+  const WelcomeScreen = () => {
+    const [iconHover, setIconHover] = useState(null);
+    
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 sm:p-8 text-center space-y-8 animate-in fade-in duration-700 relative overflow-hidden">
+        <div className="absolute inset-0 particle-bg opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-indigo-900/20 animate-aurora" />
+        
+        {/* Floating sparkles */}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute particle animate-sparkle"
+            style={{
+              left: `${15 + Math.random() * 70}%`,
+              top: `${15 + Math.random() * 70}%`,
+              width: '3px',
+              height: '3px',
+              animationDelay: `${i * 0.3}s`
+            }}
+          />
         ))}
+        
+        <div className="relative z-10 max-w-lg space-y-6">
+          <div className="space-y-4 animate-in zoom-in-95">
+            <div className="relative inline-block">
+              <Sparkles className="w-16 h-16 mx-auto text-purple-400 animate-pulse drop-shadow-[0_0_20px_rgba(168,85,247,0.6)]" />
+              <div className="absolute inset-0 w-16 h-16 mx-auto bg-purple-400/30 rounded-full blur-xl animate-pulse" />
+            </div>
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-indigo-200 animate-gradient text-glow-intense">
+              Welcome to Mystic Loop
+            </h1>
+            <p className="text-white/80 text-lg sm:text-xl font-serif">
+              Modern Mischief. Sacred Systems. Viral Magic.
+            </p>
+          </div>
+          
+          <GlassCard className="p-6 sm:p-8 space-y-4 text-left animate-in slide-in-from-bottom-10" intense style={{ animationDelay: '0.2s' }}>
+            <div className="space-y-4">
+              <div 
+                className="flex items-start gap-3 group cursor-default"
+                onMouseEnter={() => setIconHover('eye')}
+                onMouseLeave={() => setIconHover(null)}
+              >
+                <div className={`p-2 rounded-lg bg-purple-500/20 border border-purple-500/30 transition-all duration-300 ${iconHover === 'eye' ? 'scale-110 bg-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.4)]' : ''}`}>
+                  <Eye className={`w-5 h-5 text-purple-400 transition-all duration-300 ${iconHover === 'eye' ? 'scale-110 text-glow' : ''}`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-serif text-lg mb-1 group-hover:text-purple-300 transition-colors">Get Daily Readings</h3>
+                  <p className="text-white/70 text-sm leading-relaxed">Select your mood, hold the ritual circle, and receive personalized tarot guidance (or a brutal roast).</p>
+                </div>
+              </div>
+              
+              <div 
+                className="flex items-start gap-3 group cursor-default"
+                onMouseEnter={() => setIconHover('share')}
+                onMouseLeave={() => setIconHover(null)}
+              >
+                <div className={`p-2 rounded-lg bg-pink-500/20 border border-pink-500/30 transition-all duration-300 ${iconHover === 'share' ? 'scale-110 bg-pink-500/30 shadow-[0_0_20px_rgba(236,72,153,0.4)]' : ''}`}>
+                  <Share2 className={`w-5 h-5 text-pink-400 transition-all duration-300 ${iconHover === 'share' ? 'scale-110 text-glow' : ''}`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-serif text-lg mb-1 group-hover:text-pink-300 transition-colors">Share & Connect</h3>
+                  <p className="text-white/70 text-sm leading-relaxed">Send readings to friends, roast relationships, and build your collection of mystical insights.</p>
+                </div>
+              </div>
+              
+              <div 
+                className="flex items-start gap-3 group cursor-default"
+                onMouseEnter={() => setIconHover('flame')}
+                onMouseLeave={() => setIconHover(null)}
+              >
+                <div className={`p-2 rounded-lg bg-orange-500/20 border border-orange-500/30 transition-all duration-300 ${iconHover === 'flame' ? 'scale-110 bg-orange-500/30 shadow-[0_0_20px_rgba(249,115,22,0.4)]' : ''}`}>
+                  <Flame className={`w-5 h-5 text-orange-400 transition-all duration-300 ${iconHover === 'flame' ? 'scale-110 text-glow animate-pulse' : ''}`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-serif text-lg mb-1 group-hover:text-orange-300 transition-colors">Build Your Altar</h3>
+                  <p className="text-white/70 text-sm leading-relaxed">Daily check-ins power your digital altar. Keep the streak alive for stronger energies.</p>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+          
+          <div className="animate-in slide-in-from-bottom-10" style={{ animationDelay: '0.4s' }}>
+            <Button 
+              className="w-full max-w-sm min-h-[52px] text-base" 
+              variant="primary"
+              onClick={() => {
+                triggerHaptic('success');
+                setHasSeenWelcome(true);
+                try {
+                  localStorage.setItem('mysticLoop_welcomeSeen', 'true');
+                } catch {}
+                setTimeout(() => setView('mood'), 300);
+              }}
+            >
+              Begin Your Journey
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const MoodCompass = () => {
+    const [hoveredMood, setHoveredMood] = useState(null);
+    
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 text-center space-y-6 sm:space-y-8 animate-in fade-in duration-700 relative overflow-hidden">
+        {/* Enhanced Background Effects */}
+        <div className="absolute inset-0 particle-bg opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-indigo-900/20 animate-aurora" />
+        
+        {/* Floating particles */}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute particle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              width: `${2 + Math.random() * 4}px`,
+              height: `${2 + Math.random() * 4}px`,
+              animationDelay: `${Math.random() * 6}s`,
+              animationDuration: `${4 + Math.random() * 4}s`
+            }}
+          />
+        ))}
+        
+        <div className="space-y-3 sm:space-y-4 relative z-10">
+          <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-indigo-200 animate-gradient px-4 text-glow-intense">
+            How Are You Feeling?
+          </h1>
+          <p className="text-white/80 text-sm sm:text-base px-4 max-w-md mx-auto font-serif">
+            Choose your current energy. This shapes your reading—whether you get mystical guidance or a shadow roast.
+          </p>
+          <div className="w-16 sm:w-24 h-1 mx-auto bg-gradient-to-r from-transparent via-purple-500 to-transparent rounded-full mt-3 sm:mt-4 animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full max-w-md relative z-10 px-4">
+          {MOODS.map((mood, index) => (
+            <button
+              key={mood.id}
+              onClick={() => handleMoodSelect(mood.id)}
+              onMouseEnter={() => setHoveredMood(mood.id)}
+              onMouseLeave={() => setHoveredMood(null)}
+              disabled={isProcessing}
+              style={{ animationDelay: `${index * 100}ms` }}
+              className={`group relative overflow-hidden p-4 sm:p-6 rounded-2xl border border-white/10 hover:border-white/50 transition-all duration-500 hover:scale-[1.05] hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed min-h-[120px] sm:min-h-[140px] glass-premium`}
+              aria-label={`Select ${mood.label} mood`}
+            >
+              <div className={`absolute inset-0 opacity-20 bg-gradient-to-br ${mood.color} group-hover:opacity-60 transition-opacity duration-500`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${mood.color} opacity-0 group-hover:opacity-30 blur-2xl transition-opacity duration-500`} />
+              {hoveredMood === mood.id && (
+                <div className={`absolute inset-0 bg-gradient-to-br ${mood.color} opacity-0 group-hover:opacity-10 animate-energy-wave`} />
+              )}
+              <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-3">
+                <mood.icon className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:scale-125 transition-all duration-300 group-hover:drop-shadow-[0_0_20px_currentColor] group-hover:text-glow-intense" />
+                <span className="font-serif text-base sm:text-lg text-white group-hover:text-glow transition-all duration-300">{mood.label}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const Dashboard = () => (
     <div className="min-h-screen pb-28 sm:pb-24 p-4 sm:p-6 space-y-4 sm:space-y-6 animate-in slide-in-from-bottom-10 duration-500 relative">
       <div className="absolute inset-0 particle-bg opacity-20" />
       
-      <div className="flex justify-between items-center pt-4 sm:pt-8 relative z-10">
+        <div className="flex justify-between items-center pt-4 sm:pt-8 relative z-10">
         <div className="flex-1 min-w-0">
           <h2 className="font-serif text-2xl sm:text-3xl text-white mb-1 bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent truncate">
             The Loop
           </h2>
-          <p className="text-white/50 text-xs font-mono tracking-wider truncate">{new Date().toLocaleDateString()} • MOON WAXING</p>
+          <p className="text-white/50 text-xs font-mono tracking-wider truncate flex items-center gap-2">
+            <span>{new Date().toLocaleDateString()}</span>
+            <span className="text-white/30">•</span>
+            <span className="text-purple-400">MOON WAXING</span>
+          </p>
         </div>
-        <div className="flex items-center gap-2 glass-enhanced px-3 sm:px-4 py-2 rounded-full border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:scale-105 group shrink-0 ml-2">
-          <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 group-hover:text-orange-300 transition-colors drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+        <div 
+          className="flex items-center gap-2 glass-enhanced px-3 sm:px-4 py-2 rounded-full border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 hover:scale-105 group shrink-0 ml-2 cursor-default"
+          title={`${userData.streak} day streak`}
+        >
+          <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 group-hover:text-orange-300 transition-colors drop-shadow-[0_0_10px_rgba(249,115,22,0.5)] group-hover:animate-pulse" />
           <span className="font-mono text-sm font-bold text-white">{userData.streak}</span>
           <span className="font-mono text-xs text-white/60 ml-1 hidden sm:inline">days</span>
         </div>
@@ -634,21 +912,33 @@ export default function App() {
       <GlassCard className="p-6 sm:p-8 relative overflow-hidden group cursor-pointer" intense hoverable onClick={startRitual}>
         <div className="absolute inset-0 bg-gradient-to-r from-purple-900/50 via-indigo-900/50 to-blue-900/50 opacity-50 group-hover:opacity-100 transition-opacity duration-1000 animate-gradient" />
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 via-purple-500/10 to-indigo-500/0 group-hover:via-purple-500/20 transition-all duration-1000" />
+        {/* Subtle pulse effect */}
+        <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/5 transition-all duration-1000 rounded-3xl" />
         <div className="relative z-10 flex flex-col items-center text-center space-y-4 sm:space-y-6">
-          <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-white/5 border-2 border-purple-500/30 flex items-center justify-center relative group-hover:border-purple-400/60 transition-all duration-500">
+          <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-white/5 border-2 border-purple-500/30 flex items-center justify-center relative group-hover:border-purple-400/60 transition-all duration-500 group-hover:shadow-[0_0_40px_rgba(168,85,247,0.4)]">
              <div className="absolute inset-0 rounded-full border-t-2 border-purple-500 animate-spin-slow opacity-60" />
              <div className="absolute inset-0 rounded-full border-r-2 border-pink-500 animate-spin-slow opacity-40" style={{ animationDirection: 'reverse', animationDuration: '4s' }} />
-             <Eye className="w-8 h-8 sm:w-12 sm:h-12 text-white/90 group-hover:text-white group-hover:scale-110 transition-all duration-300 drop-shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+             <Eye className="w-8 h-8 sm:w-12 sm:h-12 text-white/90 group-hover:text-white group-hover:scale-110 transition-all duration-300 drop-shadow-[0_0_20px_rgba(168,85,247,0.5)] group-hover:drop-shadow-[0_0_30px_rgba(168,85,247,0.8)]" />
           </div>
           <div>
-            <h3 className="font-serif text-2xl sm:text-3xl text-white mb-2 sm:mb-3 bg-gradient-to-r from-white via-purple-100 to-white bg-clip-text text-transparent">
+            <h3 className="font-serif text-2xl sm:text-3xl text-white mb-2 sm:mb-3 bg-gradient-to-r from-white via-purple-100 to-white bg-clip-text text-transparent group-hover:text-glow transition-all duration-300">
               Daily Divination
             </h3>
-            <p className="text-white/70 text-xs sm:text-sm max-w-[240px] mx-auto leading-relaxed px-2">
-              Your pattern is incomplete. Press to synchronize with the void.
+            <p className="text-white/70 text-xs sm:text-sm max-w-[280px] mx-auto leading-relaxed px-2 mb-2">
+              Tap to start your ritual. Hold the circle until it fills completely to receive your tarot reading.
             </p>
+            <div className="flex items-center justify-center gap-2 text-white/50 text-xs font-mono">
+              <Sparkles className="w-3 h-3 text-purple-400" />
+              <span>Earn 10 Aether Coins per reading</span>
+            </div>
           </div>
-          <Button onClick={startRitual} className="mt-2 w-full sm:w-auto min-h-[44px]" disabled={isProcessing}>Initiate Sequence</Button>
+          <Button 
+            onClick={startRitual} 
+            className="mt-2 w-full sm:w-auto min-h-[48px] group-hover:shadow-[0_0_30px_rgba(168,85,247,0.5)]" 
+            disabled={isProcessing}
+          >
+            Start Reading
+          </Button>
         </div>
       </GlassCard>
 
@@ -662,6 +952,7 @@ export default function App() {
              <Flame className="w-6 h-6 sm:w-7 sm:h-7" />
            </div>
            <span className="font-serif text-white text-sm sm:text-base group-hover:text-orange-300 transition-colors">Digital Altar</span>
+           <span className="font-mono text-xs text-white/50 hidden sm:block">View your collection</span>
         </GlassCard>
         
         <GlassCard 
@@ -673,6 +964,7 @@ export default function App() {
              <User className="w-6 h-6 sm:w-7 sm:h-7" />
            </div>
            <span className="font-serif text-white text-sm sm:text-base group-hover:text-indigo-300 transition-colors">Bond Roast</span>
+           <span className="font-mono text-xs text-white/50 hidden sm:block">Relationship readings</span>
         </GlassCard>
 
         <GlassCard 
@@ -684,6 +976,7 @@ export default function App() {
              <MapPin className="w-6 h-6 sm:w-7 sm:h-7" />
            </div>
            <span className="font-serif text-white text-sm sm:text-base group-hover:text-emerald-300 transition-colors">Sanctuary</span>
+           <span className="font-mono text-xs text-white/50 hidden sm:block">Find nearby covens</span>
         </GlassCard>
 
         <GlassCard 
@@ -695,7 +988,7 @@ export default function App() {
              <CreditCard className="w-6 h-6 sm:w-7 sm:h-7" />
            </div>
            <span className="font-serif text-white text-sm sm:text-base group-hover:text-rose-300 transition-colors">SOS Read</span>
-           <span className="font-mono text-xs text-white/50">$1.99</span>
+           <span className="font-mono text-xs text-white/50">$1.99 • Instant</span>
         </GlassCard>
       </div>
     </div>
@@ -703,7 +996,7 @@ export default function App() {
 
   const RitualScreen = () => (
     <div 
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black select-none"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black select-none overflow-hidden"
       style={{ touchAction: 'none', userSelect: 'none' }}
       onMouseDown={handleRitualPress}
       onMouseUp={handleRitualRelease}
@@ -716,20 +1009,61 @@ export default function App() {
     >
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
       
+      {/* Multiple rotating auras */}
       <div 
-        className="absolute w-[500px] h-[500px] rounded-full blur-[100px] transition-all duration-100 ease-linear"
+        className="absolute w-[600px] h-[600px] rounded-full blur-[120px] transition-all duration-100 ease-linear"
         style={{
-          background: `conic-gradient(from 0deg, #4f46e5, #ec4899, #8b5cf6, #4f46e5)`,
+          background: `conic-gradient(from ${ritualProgress * 3.6}deg, #4f46e5, #ec4899, #8b5cf6, #4f46e5)`,
           transform: `scale(${1 + (ritualProgress / 50)}) rotate(${ritualProgress * 3.6}deg)`,
           opacity: 0.3 + (ritualProgress / 200)
         }}
         aria-hidden="true"
       />
+      <div 
+        className="absolute w-[400px] h-[400px] rounded-full blur-[80px] transition-all duration-150 ease-linear"
+        style={{
+          background: `conic-gradient(from ${-ritualProgress * 2.4}deg, #ec4899, #8b5cf6, #4f46e5, #ec4899)`,
+          transform: `scale(${0.8 + (ritualProgress / 60)}) rotate(${-ritualProgress * 2.4}deg)`,
+          opacity: 0.2 + (ritualProgress / 250)
+        }}
+        aria-hidden="true"
+      />
+      
+      {/* Energy waves on progress */}
+      {ritualProgress > 0 && Array.from({ length: 3 }).map((_, i) => (
+        <div
+          key={i}
+          className="absolute w-32 h-32 rounded-full border-2 border-purple-400/30 animate-energy-wave"
+          style={{
+            animationDelay: `${i * 0.3}s`,
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+      ))}
 
-      <div className="relative z-10 text-center space-y-8 sm:space-y-12 px-4">
-        <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-white tracking-widest animate-pulse px-4">
-          {ritualProgress > 0 ? "HOLD TO MANIFEST" : "TOUCH & HOLD"}
-        </h2>
+        <div className="relative z-10 text-center space-y-8 sm:space-y-12 px-4">
+        <div className="space-y-3">
+          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-white tracking-widest animate-pulse px-4 text-glow">
+            {ritualProgress > 0 ? "HOLD TO MANIFEST" : "TOUCH & HOLD"}
+          </h2>
+          <p className="text-white/60 text-xs sm:text-sm font-mono px-4 max-w-sm mx-auto leading-relaxed">
+            {ritualProgress === 0 
+              ? "Press and hold the circle below. Don't let go until it's complete."
+              : ritualProgress < 50
+              ? "Keep holding... your reading is manifesting"
+              : ritualProgress < 90
+              ? "Almost there... the void is responding"
+              : "Final moments... prepare for revelation"}
+          </p>
+          {ritualProgress > 0 && ritualProgress < 100 && (
+            <div className="flex items-center justify-center gap-2 text-white/40 text-xs font-mono">
+              <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
+              <span>Channeling energy...</span>
+            </div>
+          )}
+        </div>
         
         <div className="relative w-32 h-32 sm:w-40 sm:h-40 mx-auto flex items-center justify-center">
            <svg className="absolute inset-0 w-full h-full -rotate-90" aria-hidden="true" viewBox="0 0 160 160">
@@ -745,39 +1079,73 @@ export default function App() {
              />
            </svg>
            <div 
-             className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-200 ${ritualProgress > 0 ? 'scale-90 bg-white/20' : 'scale-100'}`}
+             className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/10 backdrop-blur-md border-2 border-white/20 flex items-center justify-center transition-all duration-200 ${ritualProgress > 0 ? 'scale-90 bg-white/20 border-purple-400/50 animate-ritual-pulse glow-purple-intense' : 'scale-100'}`}
              role="progressbar"
              aria-valuenow={ritualProgress}
              aria-valuemin={0}
              aria-valuemax={100}
              aria-label={`Ritual progress: ${ritualProgress}%`}
            >
-              <Sparkles className={`w-6 h-6 sm:w-8 sm:h-8 text-white transition-opacity ${ritualProgress > 0 ? 'opacity-100' : 'opacity-50'}`} />
+              <Sparkles className={`w-6 h-6 sm:w-8 sm:h-8 text-white transition-all duration-300 ${ritualProgress > 0 ? 'opacity-100 text-glow-intense animate-sparkle' : 'opacity-50'}`} />
+              {ritualProgress >= 100 && (
+                <div className="absolute inset-0 rounded-full border-2 border-green-400 animate-energy-wave" />
+              )}
            </div>
         </div>
 
-        <p className="font-mono text-xs sm:text-sm text-white/40 uppercase tracking-widest">
-          {ritualProgress}% Manifested
-        </p>
+        <div className="space-y-2">
+          <p className="font-mono text-xs sm:text-sm text-white/40 uppercase tracking-widest">
+            {ritualProgress}% Manifested
+          </p>
+          {ritualProgress >= 100 && (
+            <div className="flex items-center justify-center gap-2 text-green-400 text-xs font-mono animate-pulse">
+              <Check className="w-4 h-4" />
+              <span>Ritual Complete!</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 
   const ResultScreen = () => {
+    const [cardRevealed, setCardRevealed] = useState(false);
+    
     useEffect(() => {
       if (!reading) {
         setView('dashboard');
+      } else {
+        setTimeout(() => setCardRevealed(true), 200);
       }
     }, [reading]);
     
     if (!reading) return null;
     
     return (
-      <div className="min-h-screen p-4 sm:p-6 pb-28 sm:pb-24 flex flex-col items-center justify-center space-y-6 sm:space-y-8 animate-in zoom-in-95 duration-700">
-        <div className="relative w-full max-w-[280px] sm:w-64 h-[350px] sm:h-80 rounded-2xl overflow-hidden border border-white/20 shadow-2xl">
+      <div className="min-h-screen p-4 sm:p-6 pb-28 sm:pb-24 flex flex-col items-center justify-center space-y-6 sm:space-y-8 animate-in zoom-in-95 duration-700 relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 particle-bg opacity-20" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-indigo-900/10" />
+        
+        {/* Sparkle effects */}
+        {cardRevealed && Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute particle animate-sparkle"
+            style={{
+              left: `${20 + Math.random() * 60}%`,
+              top: `${20 + Math.random() * 60}%`,
+              width: '4px',
+              height: '4px',
+              animationDelay: `${i * 0.2}s`
+            }}
+          />
+        ))}
+        
+        <div className={`relative w-full max-w-[280px] sm:w-64 h-[350px] sm:h-80 rounded-2xl overflow-hidden border border-white/20 shadow-2xl ${cardRevealed ? 'animate-card-reveal' : ''}`}>
            <div className="absolute inset-0 bg-black" />
            <div 
-             className="absolute inset-0 blur-xl opacity-80"
+             className="absolute inset-0 blur-xl opacity-80 transition-opacity duration-1000"
              style={{
                 background: `
                   radial-gradient(circle at ${reading.auraVisual.position}% 20%, ${reading.auraVisual.gradient1}, transparent),
@@ -786,36 +1154,70 @@ export default function App() {
                 `
              }}
            />
+           {/* Glow effect */}
+           <div 
+             className="absolute inset-0 opacity-0 transition-opacity duration-1000"
+             style={{
+               background: `radial-gradient(circle at center, ${reading.auraVisual.gradient1}40, transparent 70%)`,
+               opacity: cardRevealed ? 0.3 : 0
+             }}
+           />
            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10 bg-black/20">
-             <h2 className="font-serif text-3xl text-white font-bold mb-2">{reading.card.name}</h2>
-             <span className="font-mono text-xs text-white/70 tracking-widest uppercase border border-white/20 px-2 py-1 rounded-full">
+             <h2 className={`font-serif text-3xl text-white font-bold mb-2 transition-all duration-1000 ${cardRevealed ? 'text-glow-intense scale-100' : 'scale-90 opacity-0'}`}>
+               {reading.card.name}
+             </h2>
+             <span className={`font-mono text-xs text-white/70 tracking-widest uppercase border border-white/20 px-2 py-1 rounded-full transition-all duration-1000 delay-300 ${cardRevealed ? 'opacity-100' : 'opacity-0'}`}>
                 {reading.card.archetype}
              </span>
            </div>
         </div>
 
-        <GlassCard className="p-6 w-full max-w-md space-y-4">
+        <GlassCard className={`p-6 w-full max-w-md space-y-4 ${cardRevealed ? 'animate-in slide-in-from-bottom-10' : 'opacity-0'}`} intense style={{ animationDelay: '0.6s' }}>
           <div className="flex justify-between items-center border-b border-white/10 pb-4">
-            <span className="text-white/50 font-mono text-xs uppercase">Interpretation</span>
-            <span className={`text-xs font-bold px-2 py-1 rounded bg-white/10 ${reading.type === 'roast' ? 'text-red-400' : 'text-purple-400'}`}>
+            <span className="text-white/50 font-mono text-xs uppercase tracking-wider">Interpretation</span>
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-full bg-white/10 border ${reading.type === 'roast' ? 'text-red-400 border-red-500/30' : 'text-purple-400 border-purple-500/30'} animate-pulse-glow`}>
               {reading.type === 'roast' ? 'SHADOW ROAST' : 'MYSTIC GUIDANCE'}
             </span>
           </div>
-          <p className="text-white text-lg font-serif leading-relaxed">
+          <p className="text-white text-lg sm:text-xl font-serif leading-relaxed italic">
             "{reading.type === 'roast' ? reading.card.roast : reading.card.light}"
           </p>
+          {cardRevealed && (
+            <div className="pt-2 flex items-center justify-center gap-2 text-white/40 text-xs font-mono">
+              <Sparkles className="w-3 h-3" />
+              <span>Reading #{userData.readings.length}</span>
+            </div>
+          )}
         </GlassCard>
 
-        <div className="flex gap-4 w-full max-w-md">
-          <Button className="flex-1 flex items-center justify-center gap-2" variant="primary" onClick={handleShare} loading={isLoading}>
+        <div className={`flex gap-3 sm:gap-4 w-full max-w-md ${cardRevealed ? 'animate-in slide-in-from-bottom-10' : 'opacity-0'}`} style={{ animationDelay: '0.8s' }}>
+          <Button 
+            className="flex-1 flex items-center justify-center gap-2 min-h-[48px]" 
+            variant="primary" 
+            onClick={handleShare} 
+            loading={isLoading}
+          >
              <Share2 className="w-4 h-4" /> Share
           </Button>
-          <Button className="flex-1 flex items-center justify-center gap-2" variant="secondary" onClick={createShadowSend} loading={isLoading}>
+          <Button 
+            className="flex-1 flex items-center justify-center gap-2 min-h-[48px]" 
+            variant="secondary" 
+            onClick={createShadowSend} 
+            loading={isLoading}
+          >
              <Ghost className="w-4 h-4" /> Shadow Send
           </Button>
         </div>
         
-        <Button className="w-full max-w-md" variant="ghost" onClick={() => setView('dashboard')}>
+        <Button 
+          className={`w-full max-w-md min-h-[44px] ${cardRevealed ? 'animate-in fade-in' : 'opacity-0'}`} 
+          variant="ghost" 
+          onClick={() => {
+            triggerHaptic('light');
+            setView('dashboard');
+          }}
+          style={{ animationDelay: '1s' }}
+        >
            Return to the Loop
         </Button>
       </div>
@@ -829,37 +1231,74 @@ export default function App() {
             <p className="font-mono text-xs text-white/50 px-4">Keep the flame alive to invite stronger energies.</p>
         </div>
 
-        <div className="h-64 relative rounded-t-full border-b border-white/20 bg-gradient-to-b from-transparent to-purple-900/20 flex items-end justify-center p-8 gap-4">
+        <div className="h-64 relative rounded-t-full border-b border-white/20 bg-gradient-to-b from-transparent via-purple-900/10 to-purple-900/20 flex items-end justify-center p-8 gap-4 overflow-hidden">
+            {/* Subtle glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-t from-orange-500/10 to-transparent" />
+            
             {Array.from({ length: Math.min(5, userData.streak || 1) }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center">
-                    <div className="w-2 h-4 bg-orange-400 rounded-full blur-[2px] animate-pulse mb-1" />
-                    <div className="w-4 h-16 bg-gradient-to-b from-white to-gray-300 rounded-sm opacity-80" />
+                <div key={i} className="flex flex-col items-center group cursor-default relative z-10">
+                    <div className="w-2 h-4 bg-orange-400 rounded-full blur-[2px] animate-pulse mb-1 group-hover:scale-125 transition-transform drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                    <div className="w-4 h-16 bg-gradient-to-b from-white via-orange-50 to-gray-300 rounded-sm opacity-80 group-hover:opacity-100 transition-opacity shadow-[0_0_10px_rgba(249,115,22,0.3)]" />
                 </div>
             ))}
              {userData.streak > 5 && (
-                 <div className="font-mono text-xs text-white/50 absolute bottom-2 right-4">
+                 <div className="font-mono text-xs text-white/60 absolute bottom-2 right-4 bg-black/40 px-2 py-1 rounded-full border border-white/10">
                     + {userData.streak - 5} more
+                 </div>
+             )}
+             {userData.streak === 0 && (
+                 <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="text-center space-y-2">
+                     <Flame className="w-8 h-8 mx-auto text-white/20" />
+                     <p className="text-white/40 font-mono text-xs">Light your first candle</p>
+                   </div>
                  </div>
              )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-            <GlassCard className="p-4 text-center">
-                <div className="text-3xl font-serif text-white mb-1">{userData.streak}</div>
-                <div className="text-xs font-mono text-white/50 uppercase">Day Streak</div>
+            <GlassCard className="p-5 text-center group hover:scale-105 transition-all duration-300 cursor-default" hoverable>
+                <div className="text-4xl font-serif text-white mb-2 text-glow group-hover:scale-110 transition-transform duration-300">{userData.streak}</div>
+                <div className="text-xs font-mono text-white/50 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                  <Flame className="w-3 h-3 text-orange-400" />
+                  Day Streak
+                </div>
+                {userData.streak >= 7 && (
+                  <div className="mt-2 text-xs font-mono text-orange-400 animate-pulse">🔥 On Fire!</div>
+                )}
             </GlassCard>
-            <GlassCard className="p-4 text-center">
-                <div className="text-3xl font-serif text-white mb-1">{userData.coins}</div>
-                <div className="text-xs font-mono text-white/50 uppercase">Aether Coins</div>
+            <GlassCard className="p-5 text-center group hover:scale-105 transition-all duration-300 cursor-default" hoverable>
+                <div className="text-4xl font-serif text-white mb-2 text-glow group-hover:scale-110 transition-transform duration-300">{userData.coins}</div>
+                <div className="text-xs font-mono text-white/50 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-purple-400" />
+                  Aether Coins
+                </div>
+                {userData.coins >= 500 && (
+                  <div className="mt-2 text-xs font-mono text-purple-400 animate-pulse">✨ Wealthy!</div>
+                )}
             </GlassCard>
         </div>
 
-        <GlassCard className="p-6">
-            <h3 className="font-serif text-white mb-4">Grimoire Collection</h3>
+        <GlassCard className="p-6" intense>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-serif text-white">Grimoire Collection</h3>
+              {userData.readings.length > 0 && (
+                <span className="text-xs font-mono text-white/40">
+                  {userData.readings.length} {userData.readings.length === 1 ? 'reading' : 'readings'}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-4 gap-2">
                 {userData.readings.length > 0 ? (
                   userData.readings.slice(-8).map((reading, idx) => (
-                    <div key={reading.id || idx} className="aspect-square rounded-lg bg-white/5 border border-white/10 overflow-hidden relative group cursor-pointer hover:border-white/30 transition-all">
+                    <div 
+                      key={reading.id || idx} 
+                      className="aspect-square rounded-lg bg-white/5 border border-white/10 overflow-hidden relative group cursor-pointer hover:border-white/40 hover:scale-105 transition-all duration-300 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                      onClick={() => {
+                        setReading(reading);
+                        setView('result');
+                      }}
+                    >
                         <div 
                           className="w-full h-full opacity-70 transition-opacity group-hover:opacity-100"
                           style={{
@@ -869,8 +1308,12 @@ export default function App() {
                             `
                           }}
                         />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="text-xs font-serif text-white/90 bg-black/50 px-2 py-1 rounded">{reading.card.name}</span>
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                          <span className="text-xs font-serif text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">{reading.card.name}</span>
+                        </div>
+                        {/* Type indicator */}
+                        <div className="absolute top-1 right-1">
+                          <div className={`w-2 h-2 rounded-full ${reading.type === 'roast' ? 'bg-red-400' : 'bg-purple-400'} shadow-[0_0_8px_currentColor]`} />
                         </div>
                     </div>
                   ))
@@ -1102,16 +1545,33 @@ export default function App() {
     );
   };
 
-  const BondRoastView = () => (
-    <div className="min-h-screen p-6 pb-28 flex flex-col items-center justify-center space-y-6 animate-in fade-in">
-      {!bondRoast ? (
-        <GlassCard className="p-8 w-full max-w-md space-y-6" intense>
+  const BondRoastView = () => {
+    const [revealed, setRevealed] = useState(false);
+    
+    useEffect(() => {
+      if (bondRoast) {
+        setTimeout(() => setRevealed(true), 300);
+      } else {
+        setRevealed(false);
+      }
+    }, [bondRoast]);
+    
+    return (
+      <div className="min-h-screen p-4 sm:p-6 pb-28 flex flex-col items-center justify-center space-y-6 animate-in fade-in relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 particle-bg opacity-20" />
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/10 to-pink-900/10" />
+        
+        {!bondRoast ? (
+        <GlassCard className="p-6 sm:p-8 w-full max-w-md space-y-6" intense>
           <div className="text-center space-y-2">
-            <User className="w-12 h-12 mx-auto text-indigo-400" />
-            <h2 className="font-serif text-3xl text-white bg-gradient-to-r from-indigo-200 to-purple-200 bg-clip-text text-transparent">
+            <User className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-indigo-400" />
+            <h2 className="font-serif text-2xl sm:text-3xl text-white bg-gradient-to-r from-indigo-200 to-purple-200 bg-clip-text text-transparent">
               Bond Roast
             </h2>
-            <p className="text-white/60 text-sm">Brutally honest compatibility. Enter names (or leave blank for defaults).</p>
+            <p className="text-white/70 text-xs sm:text-sm px-2">
+              Get brutally honest relationship compatibility readings. Enter two names (or leave blank for "You" vs "Them").
+            </p>
           </div>
           
           <div className="space-y-4">
@@ -1169,29 +1629,38 @@ export default function App() {
         </GlassCard>
       ) : (
         <>
-          <GlassCard className="p-8 w-full max-w-md space-y-6" intense>
+          <GlassCard className={`p-6 sm:p-8 w-full max-w-md space-y-6 ${revealed ? 'animate-card-reveal' : 'opacity-0'}`} intense>
             <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-4">
-                <div className="text-center">
-                  <div className="text-lg font-serif text-white">{bondRoast.name1}</div>
+              <div className="flex items-center justify-center gap-3 sm:gap-4">
+                <div className="text-center p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 glass-premium">
+                  <div className="text-base sm:text-lg font-serif text-white text-glow">{bondRoast.name1}</div>
                   <div className="text-xs font-mono text-indigo-400 uppercase mt-1">{bondRoast.you}</div>
                 </div>
-                <div className="text-white/40 text-2xl font-serif">vs</div>
-                <div className="text-center">
-                  <div className="text-lg font-serif text-white">{bondRoast.name2}</div>
+                <div className="text-white/40 text-xl sm:text-2xl font-serif animate-pulse">vs</div>
+                <div className="text-center p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 glass-premium">
+                  <div className="text-base sm:text-lg font-serif text-white text-glow">{bondRoast.name2}</div>
                   <div className="text-xs font-mono text-purple-400 uppercase mt-1">{bondRoast.them}</div>
                 </div>
               </div>
             </div>
             
-            <div className="p-6 bg-black/40 rounded-2xl border border-red-500/30 space-y-4">
-              <div className="text-center">
-                <div className="text-4xl font-serif text-red-400 mb-2">{bondRoast.compatibility}%</div>
+            <div className={`p-6 bg-gradient-to-br from-black/60 to-red-900/20 rounded-2xl border-2 border-red-500/40 space-y-4 ${revealed ? 'animate-card-reveal' : ''}`} style={{ animationDelay: '0.2s' }}>
+              <div className="text-center relative">
+                <div className="text-5xl sm:text-6xl font-serif text-red-400 mb-2 text-glow-intense animate-pulse-glow">
+                  {bondRoast.compatibility}%
+                </div>
                 <div className="text-xs font-mono text-white/50 uppercase tracking-wider">Compatibility</div>
+                {/* Progress bar */}
+                <div className="mt-4 h-2 bg-black/40 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-1000"
+                    style={{ width: `${bondRoast.compatibility}%` }}
+                  />
+                </div>
               </div>
               
               <div className="pt-4 border-t border-white/10">
-                <p className="text-white text-lg font-serif leading-relaxed text-center italic">
+                <p className={`text-white text-base sm:text-lg font-serif leading-relaxed text-center italic ${revealed ? 'animate-in fade-in' : ''}`} style={{ animationDelay: '0.4s' }}>
                   "{bondRoast.roast}"
                 </p>
               </div>
@@ -1251,8 +1720,9 @@ export default function App() {
           </GlassCard>
         </>
       )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   const ShadowSendView = () => (
     <div className="min-h-screen p-6 flex flex-col items-center justify-center space-y-6 animate-in fade-in">
@@ -1415,45 +1885,67 @@ export default function App() {
   // --- Main Render Switch ---
   return (
     <div className="bg-black min-h-screen font-sans overflow-hidden relative">
-      <div className="fixed inset-0 pointer-events-none">
+      {/* Enhanced Dynamic Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          {/* Mood-based gradient */}
           <div className={`absolute inset-0 transition-opacity duration-1000 ${currentMood ? 'opacity-30' : 'opacity-10'}`} 
             style={{ 
                 background: currentMood ? `linear-gradient(to bottom right, transparent, ${currentMood.color.split(' ')[1].replace('to-', '#')})` : 'none'
             }} 
           />
-          <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-purple-900/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-indigo-900/20 rounded-full blur-[120px] animate-pulse delay-1000" />
+          
+          {/* Animated orbs */}
+          <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-purple-900/20 rounded-full blur-[120px] animate-pulse animate-aurora" />
+          <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-indigo-900/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] bg-pink-900/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
+          
+          {/* Particle overlay */}
+          <div className="absolute inset-0 particle-bg opacity-10" />
       </div>
 
       {/* Notification Queue */}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 space-y-2 flex flex-col items-center">
+      <div className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 space-y-2 flex flex-col items-center max-w-sm w-full px-4">
         {notifications.map((notif, idx) => (
           <div 
             key={notif.id} 
-            className="animate-in slide-in-from-top-4 fade-in"
+            className="animate-in slide-in-from-top-4 fade-in w-full"
             style={{ animationDelay: `${idx * 100}ms` }}
           >
-            <GlassCard className={`px-6 py-2 rounded-full flex items-center gap-2 ${
-              notif.type === 'success' ? 'border-green-500/30 text-emerald-400' :
-              notif.type === 'error' ? 'border-red-500/30 text-red-400' :
-              'border-blue-500/30 text-blue-400'
-            }`}>
-              {notif.type === 'success' && <Check className="w-4 h-4" />}
-              {notif.type === 'error' && <X className="w-4 h-4" />}
-              {notif.type === 'info' && <Sparkles className="w-4 h-4" />}
-              <span className="text-sm font-mono">{notif.message}</span>
+            <GlassCard className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center gap-2.5 justify-center shadow-lg ${
+              notif.type === 'success' ? 'border-green-500/40 text-emerald-400 bg-emerald-500/5' :
+              notif.type === 'error' ? 'border-red-500/40 text-red-400 bg-red-500/5' :
+              'border-blue-500/40 text-blue-400 bg-blue-500/5'
+            }`} intense>
+              {notif.type === 'success' && <Check className="w-4 h-4 shrink-0" />}
+              {notif.type === 'error' && <X className="w-4 h-4 shrink-0" />}
+              {notif.type === 'info' && <Sparkles className="w-4 h-4 shrink-0 animate-pulse" />}
+              <span className="text-xs sm:text-sm font-mono text-center">{notif.message}</span>
             </GlassCard>
           </div>
         ))}
       </div>
 
       {view === 'loading' && (
-        <div className="h-screen flex flex-col items-center justify-center text-white space-y-4" role="status" aria-label="Loading">
-          <Ghost className="w-12 h-12 animate-bounce opacity-50" />
-          <p className="font-mono text-xs animate-pulse">SUMMONING DAEMON...</p>
+        <div className="h-screen flex flex-col items-center justify-center text-white space-y-6 relative overflow-hidden" role="status" aria-label="Loading">
+          <div className="absolute inset-0 particle-bg opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-indigo-900/10" />
+          <div className="relative z-10 flex flex-col items-center space-y-4">
+            <div className="relative">
+              <Ghost className="w-16 h-16 animate-bounce opacity-80 drop-shadow-[0_0_20px_rgba(168,85,247,0.6)]" />
+              <div className="absolute inset-0 w-16 h-16 bg-purple-400/30 rounded-full blur-xl animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+              <p className="font-mono text-sm animate-pulse tracking-wider">SUMMONING DAEMON...</p>
+              <div className="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full animate-gradient" style={{ width: '60%' }} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
+      {view === 'welcome' && <WelcomeScreen />}
+      {view === 'welcome' && <WelcomeScreen />}
       {view === 'mood' && <MoodCompass />}
       {view === 'dashboard' && <Dashboard />}
       {view === 'ritual' && <RitualScreen />}
@@ -1467,30 +1959,48 @@ export default function App() {
 
       {['dashboard', 'altar', 'sanctuary'].includes(view) && (
         <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 z-40 safe-area-inset-bottom">
-           <div className="max-w-md mx-auto bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl flex justify-between px-4 sm:px-8 py-3 sm:py-4">
+           <div className="max-w-md mx-auto bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl flex justify-between px-4 sm:px-8 py-3 sm:py-4 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
                <button 
-                 onClick={() => setView('dashboard')} 
-                 className={`transition-all active:scale-90 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center ${view === 'dashboard' ? 'text-purple-400' : 'text-white/40 hover:text-white/60'}`}
+                 onClick={() => {
+                   triggerHaptic('light');
+                   setView('dashboard');
+                 }} 
+                 className={`transition-all duration-300 active:scale-90 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center relative group ${view === 'dashboard' ? 'text-purple-400' : 'text-white/40 hover:text-white/60'}`}
                  aria-label="Dashboard"
                  aria-current={view === 'dashboard' ? 'page' : undefined}
                >
-                   <Moon className="w-6 h-6" />
+                   {view === 'dashboard' && (
+                     <div className="absolute inset-0 bg-purple-500/10 rounded-lg blur-sm" />
+                   )}
+                   <Moon className={`w-6 h-6 relative z-10 transition-all duration-300 ${view === 'dashboard' ? 'drop-shadow-[0_0_10px_rgba(168,85,247,0.6)] scale-110' : 'group-hover:scale-110'}`} />
                </button>
                <button 
-                 onClick={() => setView('altar')} 
-                 className={`transition-all active:scale-90 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center ${view === 'altar' ? 'text-orange-400' : 'text-white/40 hover:text-white/60'}`}
+                 onClick={() => {
+                   triggerHaptic('light');
+                   setView('altar');
+                 }} 
+                 className={`transition-all duration-300 active:scale-90 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center relative group ${view === 'altar' ? 'text-orange-400' : 'text-white/40 hover:text-white/60'}`}
                  aria-label="Digital Altar"
                  aria-current={view === 'altar' ? 'page' : undefined}
                >
-                   <Flame className="w-6 h-6" />
+                   {view === 'altar' && (
+                     <div className="absolute inset-0 bg-orange-500/10 rounded-lg blur-sm" />
+                   )}
+                   <Flame className={`w-6 h-6 relative z-10 transition-all duration-300 ${view === 'altar' ? 'drop-shadow-[0_0_10px_rgba(249,115,22,0.6)] scale-110 animate-pulse' : 'group-hover:scale-110'}`} />
                </button>
                <button 
-                 onClick={() => setView('sanctuary')} 
-                 className={`transition-all active:scale-90 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center ${view === 'sanctuary' ? 'text-emerald-400' : 'text-white/40 hover:text-white/60'}`}
+                 onClick={() => {
+                   triggerHaptic('light');
+                   setView('sanctuary');
+                 }} 
+                 className={`transition-all duration-300 active:scale-90 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center relative group ${view === 'sanctuary' ? 'text-emerald-400' : 'text-white/40 hover:text-white/60'}`}
                  aria-label="Sanctuary"
                  aria-current={view === 'sanctuary' ? 'page' : undefined}
                >
-                   <MapPin className="w-6 h-6" />
+                   {view === 'sanctuary' && (
+                     <div className="absolute inset-0 bg-emerald-500/10 rounded-lg blur-sm" />
+                   )}
+                   <MapPin className={`w-6 h-6 relative z-10 transition-all duration-300 ${view === 'sanctuary' ? 'drop-shadow-[0_0_10px_rgba(16,185,129,0.6)] scale-110' : 'group-hover:scale-110'}`} />
                </button>
            </div>
         </div>

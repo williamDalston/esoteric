@@ -22,6 +22,7 @@ import {
   Check,
   Loader2
 } from 'lucide-react';
+import BondRoast from './BondRoast';
 
 // --- Constants & Data ---
 const MOODS = [
@@ -245,8 +246,7 @@ export default function App() {
   const [nearbySanctuaries, setNearbySanctuaries] = useState([]);
   const [locationError, setLocationError] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
-  const [bondRoast, setBondRoast] = useState(null);
-  // bondName1 and bondName2 now use refs (see bondName1Ref, bondName2Ref) to prevent re-render issues
+  // bondRoast state removed - now handled entirely in separate BondRoast component
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     try {
       return localStorage.getItem('mysticLoop_welcomeSeen') === 'true';
@@ -1883,242 +1883,8 @@ export default function App() {
     );
   };
 
-  // Refs for Bond Roast inputs (uncontrolled to prevent re-render issues)
-  const bondName1Ref = useRef(null);
-  const bondName2Ref = useRef(null);
-  
-  // Generate bond roast using refs
-  const handleGenerateBondRoast = useCallback(() => {
-    const name1 = bondName1Ref.current?.value?.trim() || 'You';
-    const name2 = bondName2Ref.current?.value?.trim() || 'Them';
-    
-    // Select a random bond pattern
-    const pattern = BOND_PATTERNS[Math.floor(Math.random() * BOND_PATTERNS.length)];
-    
-    const roast = {
-      id: Date.now(),
-      name1,
-      name2,
-      you: pattern.you,
-      them: pattern.them,
-      roast: pattern.roast,
-      compatibility: pattern.compatibility,
-      timestamp: new Date()
-    };
-    
-    setBondRoast(roast);
-    setUserData(prev => ({
-      ...prev,
-      bondRoasts: [...(prev.bondRoasts || []), roast]
-    }));
-    triggerHaptic('success');
-    addNotification('Bond roasted. Share the chaos.', 'success');
-  }, [addNotification]);
-
-  const BondRoastView = () => {
-    const [revealed, setRevealed] = useState(false);
-    
-    useEffect(() => {
-      if (bondRoast) {
-        setTimeout(() => setRevealed(true), 300);
-      } else {
-        setRevealed(false);
-      }
-    }, [bondRoast]);
-    
-    // Clear inputs when entering view without a roast
-    useEffect(() => {
-      if (!bondRoast) {
-        if (bondName1Ref.current) bondName1Ref.current.value = '';
-        if (bondName2Ref.current) bondName2Ref.current.value = '';
-      }
-    }, []);
-    
-    return (
-      <div className="min-h-screen p-4 sm:p-6 pb-28 flex flex-col items-center justify-center space-y-6 animate-in fade-in relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 particle-bg opacity-20" />
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/10 to-pink-900/10" />
-        
-        {!bondRoast ? (
-        <GlassCard className="p-6 sm:p-8 w-full max-w-md space-y-6" intense>
-          <div className="text-center space-y-2">
-            <User className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-indigo-400" />
-            <h2 className="font-serif text-2xl sm:text-3xl text-white bg-gradient-to-r from-indigo-200 to-purple-200 bg-clip-text text-transparent">
-              Bond Roast
-            </h2>
-            <p className="text-white/70 text-xs sm:text-sm px-2">
-              Get brutally honest relationship compatibility readings. Enter two names (or leave blank for "You" vs "Them").
-            </p>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="text-white/70 text-xs font-mono uppercase tracking-wider block mb-2">
-                First Person (or "You")
-              </label>
-              <input
-                ref={bondName1Ref}
-                type="text"
-                defaultValue=""
-                placeholder="You"
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                maxLength={20}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-              />
-            </div>
-            
-            <div className="flex items-center justify-center py-2">
-              <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              <span className="px-4 text-white/40 font-serif">vs</span>
-              <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            </div>
-            
-            <div>
-              <label className="text-white/70 text-xs font-mono uppercase tracking-wider block mb-2">
-                Second Person (or "Them")
-              </label>
-              <input
-                ref={bondName2Ref}
-                type="text"
-                defaultValue=""
-                placeholder="Them"
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                maxLength={20}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-              />
-            </div>
-          </div>
-          
-          <Button 
-            className="w-full" 
-            variant="primary" 
-            onClick={handleGenerateBondRoast}
-            disabled={isLoading}
-          >
-            Roast This Bond
-          </Button>
-          
-          <Button 
-            className="w-full" 
-            variant="ghost" 
-            onClick={() => setView('dashboard')}
-          >
-            Back to Loop
-          </Button>
-        </GlassCard>
-      ) : (
-        <>
-          <GlassCard className={`p-6 sm:p-8 w-full max-w-md space-y-6 ${revealed ? 'animate-card-reveal' : 'opacity-0'}`} intense>
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-3 sm:gap-4">
-                <div className="text-center p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 glass-premium">
-                  <div className="text-base sm:text-lg font-serif text-white text-glow">{bondRoast.name1}</div>
-                  <div className="text-xs font-mono text-indigo-400 uppercase mt-1">{bondRoast.you}</div>
-                </div>
-                <div className="text-white/40 text-xl sm:text-2xl font-serif animate-pulse">vs</div>
-                <div className="text-center p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 glass-premium">
-                  <div className="text-base sm:text-lg font-serif text-white text-glow">{bondRoast.name2}</div>
-                  <div className="text-xs font-mono text-purple-400 uppercase mt-1">{bondRoast.them}</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className={`p-6 bg-gradient-to-br from-black/60 to-red-900/20 rounded-2xl border-2 border-red-500/40 space-y-4 ${revealed ? 'animate-card-reveal' : ''}`} style={{ animationDelay: '0.2s' }}>
-              <div className="text-center relative">
-                <div className="text-5xl sm:text-6xl font-serif text-red-400 mb-2 text-glow-intense animate-pulse-glow">
-                  {bondRoast.compatibility}%
-                </div>
-                <div className="text-xs font-mono text-white/50 uppercase tracking-wider mb-4">Compatibility</div>
-                {/* Progress bar */}
-                <div className="mt-4 h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/10">
-                  <div 
-                    className="h-full bg-gradient-to-r from-red-500 via-red-400 to-red-500 transition-all duration-1000 shadow-[0_0_10px_rgba(239,68,68,0.6)]"
-                    style={{ width: `${bondRoast.compatibility}%` }}
-                  />
-                </div>
-                {/* Compatibility message */}
-                <p className="mt-3 text-xs font-mono text-white/40">
-                  {bondRoast.compatibility < 30 
-                    ? '💀 Toxic territory'
-                    : bondRoast.compatibility < 50
-                    ? '⚠️ Proceed with caution'
-                    : bondRoast.compatibility < 70
-                    ? '✨ Potential exists'
-                    : '🔥 Strong connection'}
-                </p>
-              </div>
-              
-              <div className="pt-4 border-t border-white/10">
-                <p className={`text-white text-base sm:text-lg font-serif leading-relaxed text-center italic ${revealed ? 'animate-in fade-in' : ''}`} style={{ animationDelay: '0.4s' }}>
-                  "{bondRoast.roast}"
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-3">
-              <Button 
-                className="flex-1 flex items-center justify-center gap-2" 
-                variant="primary" 
-                onClick={async () => {
-                  const text = `🔮 Bond Roast: ${bondRoast.name1} (${bondRoast.you}) vs ${bondRoast.name2} (${bondRoast.them})\n${bondRoast.compatibility}% Compatible\n\n"${bondRoast.roast}"\n\n— Mystic Loop: Modern Mischief. Sacred Systems. Viral Magic.`;
-                  
-                  if (navigator.share) {
-                    try {
-                      await navigator.share({
-                        title: 'Bond Roast from Mystic Loop',
-                        text: text,
-                        url: window.location.href
-                      });
-                      addNotification('Roast shared to the void', 'success');
-                    } catch (err) {
-                      // Fallback to copy
-                    }
-                  }
-                  
-                  try {
-                    await navigator.clipboard.writeText(text);
-                    addNotification('Copied. Share the chaos.', 'success');
-                    triggerHaptic('light');
-                  } catch (err) {
-                    addNotification('Failed to copy', 'error');
-                  }
-                }}
-              >
-                <Share2 className="w-4 h-4" /> Share
-              </Button>
-              <Button 
-                className="flex-1" 
-                variant="secondary" 
-                onClick={() => {
-                  setBondRoast(null);
-                  if (bondName1Ref.current) bondName1Ref.current.value = '';
-                  if (bondName2Ref.current) bondName2Ref.current.value = '';
-                }}
-              >
-                New Roast
-              </Button>
-            </div>
-            
-            <Button 
-              className="w-full" 
-              variant="ghost" 
-              onClick={() => setView('dashboard')}
-            >
-              Return to Loop
-            </Button>
-          </GlassCard>
-        </>
-      )}
-      </div>
-    );
-  };
+  // BondRoast is now a separate component imported from ./BondRoast.jsx
+  // This prevents re-renders when App state changes
 
   const ShadowSendView = () => (
     <div className="min-h-screen p-6 flex flex-col items-center justify-center space-y-6 animate-in fade-in">
@@ -2383,7 +2149,12 @@ export default function App() {
       </div>
       
       {/* BondRoast rendered outside transition wrapper to prevent input focus issues */}
-      {view === 'bondRoast' && <BondRoastView />}
+      {view === 'bondRoast' && (
+        <BondRoast 
+          onBack={() => setView('dashboard')} 
+          onNotification={addNotification} 
+        />
+      )}
       
       {showPaywall && <PaywallModal />}
 

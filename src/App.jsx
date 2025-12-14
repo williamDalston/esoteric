@@ -554,14 +554,47 @@ export default function App() {
     }
   }, [view]);
 
-  // Generate nearby sanctuaries (mock data - in production this would be from API)
+  // Generate nearby sanctuaries (fictional energy convergence points)
   const generateNearbySanctuaries = (centerLocation) => {
     const sanctuaries = [];
-    const types = ['coven', 'sanctuary', 'temple', 'circle'];
     const colors = ['purple', 'emerald', 'pink', 'indigo', 'orange'];
+    
+    // Evocative sanctuary names
+    const sanctuaryNames = [
+      'The Velvet Threshold',
+      'Midnight Garden',
+      'The Liminal Pool',
+      'Whisper Hollow',
+      'The Ember Circle',
+      'Starfall Grove',
+      'The Dreaming Well',
+      'Shadow Meadow',
+      'The Gossamer Veil',
+      'Moonbloom Sanctuary',
+      'The Quiet Flame',
+      'Dusk Haven',
+    ];
+    
+    const vibes = [
+      'Where intentions crystallize into reality',
+      'A pocket of stillness in the chaos',
+      'The universe listens closer here',
+      'Where shadows dance with light',
+      'Energy pools like honey at dawn',
+      'The veil is thin. Tread gently.',
+      'Seekers find each other here',
+      'Time moves differently in this space',
+      'Where the lost become found',
+      'A crossroads of cosmic currents',
+      'Healing frequencies converge',
+      'The air hums with possibility',
+    ];
     
     // Generate 3-6 random nearby points
     const count = 3 + Math.floor(Math.random() * 4);
+    const shuffledNames = [...sanctuaryNames].sort(() => Math.random() - 0.5);
+    const shuffledVibes = [...vibes].sort(() => Math.random() - 0.5);
+    
     for (let i = 0; i < count; i++) {
       const distance = 0.01 + Math.random() * 0.05; // 1-6km away
       const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.5);
@@ -572,10 +605,11 @@ export default function App() {
         id: i,
         lat,
         lng,
-        name: `${types[Math.floor(Math.random() * types.length)]} ${String.fromCharCode(65 + i)}`,
-        type: types[Math.floor(Math.random() * types.length)],
+        name: shuffledNames[i],
+        vibe: shuffledVibes[i],
         color: colors[Math.floor(Math.random() * colors.length)],
-        distance: Math.round(distance * 111) // Convert to km
+        distance: Math.round(distance * 111), // Convert to km
+        members: Math.floor(Math.random() * 23) + 3, // 3-25 members
       });
     }
     
@@ -1675,10 +1709,10 @@ export default function App() {
               zoomControl={false}
               attributionControl={false}
             >
-              {/* Dark themed map tiles from CartoDB */}
+              {/* Softer dark themed map tiles - more inviting while still mystical */}
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
               />
               
               {/* Recenter when location changes */}
@@ -1786,6 +1820,19 @@ export default function App() {
               </div>
             </GlassCard>
           )}
+          
+          {/* What are Sanctuaries */}
+          <GlassCard className="p-4 flex items-start gap-3" intense>
+            <div className="p-2 bg-purple-500/20 rounded-lg shrink-0">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-white font-serif text-base mb-0.5">What are Sanctuaries?</h3>
+              <p className="text-white/50 text-xs leading-relaxed">
+                Vibrational convergence points where mystic energy pools. These aren't physical places—they're energetic coordinates where the veil feels thinner. Find your tribe at these invisible gathering spots.
+              </p>
+            </div>
+          </GlassCard>
           
           {/* Ghost Mode info */}
           <GlassCard className="p-4 flex items-start gap-3" intense>

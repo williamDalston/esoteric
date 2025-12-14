@@ -481,6 +481,60 @@ export default function App() {
     triggerHaptic('light');
   }, [isProcessing]);
 
+  // Define completeRitual before handleRitualPress to avoid forward reference
+  const completeRitual = useCallback(() => {
+    const randomCard = TAROT_CARDS[Math.floor(Math.random() * TAROT_CARDS.length)];
+    const isRoast = Math.random() > 0.5;
+    const auraSeed = Math.random();
+    const auraVisual = generateAuraVisual(auraSeed, currentMood);
+    
+    const newReading = {
+      id: Date.now(),
+      card: randomCard,
+      type: isRoast ? 'roast' : 'mystic',
+      timestamp: new Date(),
+      auraSeed,
+      auraVisual,
+      mood: currentMood?.id || 'void',
+      shareable: true
+    };
+    
+    setReading(newReading);
+    const newCoins = userData.coins + 10;
+    const newReadingsCount = (userData.readings?.length || 0) + 1;
+    
+    setUserData(prev => ({
+      ...prev,
+      coins: newCoins,
+      readings: [...(prev.readings || []), newReading]
+    }));
+
+    // Celebrate milestones
+    let milestoneMessage = 'Ritual complete. +10 Aether Coins earned.';
+    
+    // Coin milestones
+    if (newCoins === 100 || newCoins === 250 || newCoins === 500 || newCoins === 1000) {
+      milestoneMessage = `🎉 ${newCoins} Aether Coins! You're building power.`;
+      triggerHaptic('success');
+    }
+    
+    // Reading milestones
+    if (newReadingsCount === 10 || newReadingsCount === 25 || newReadingsCount === 50 || newReadingsCount === 100) {
+      milestoneMessage = `✨ ${newReadingsCount} readings collected! Your grimoire grows.`;
+      triggerHaptic('success');
+    }
+    
+    // Special achievement for first reading
+    if (newReadingsCount === 1) {
+      milestoneMessage = '✨ First reading complete. The void welcomes you.';
+      triggerHaptic('success');
+    }
+    
+    addNotification(milestoneMessage, 'success');
+    triggerHaptic('success');
+    setTimeout(() => setView('result'), 500);
+  }, [currentMood, addNotification, userData.coins, userData.readings]);
+
   const handleRitualPress = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -510,7 +564,7 @@ export default function App() {
         return newProgress;
       });
     }, 50);
-  }, []);
+  }, [completeRitual]);
 
   const handleRitualRelease = useCallback((e) => {
     e.preventDefault();
@@ -539,59 +593,6 @@ export default function App() {
       rotation: seed * 360
     };
   };
-
-  const completeRitual = useCallback(() => {
-    const randomCard = TAROT_CARDS[Math.floor(Math.random() * TAROT_CARDS.length)];
-    const isRoast = Math.random() > 0.5;
-    const auraSeed = Math.random();
-    const auraVisual = generateAuraVisual(auraSeed, currentMood);
-    
-    const newReading = {
-      id: Date.now(),
-      card: randomCard,
-      type: isRoast ? 'roast' : 'mystic',
-      timestamp: new Date(),
-      auraSeed,
-      auraVisual,
-      mood: currentMood?.id || 'void',
-      shareable: true
-    };
-    
-    setReading(newReading);
-    const newCoins = userData.coins + 10;
-    const newReadingsCount = (userData.readings?.length || 0) + 1;
-    
-    setUserData(prev => ({
-      ...prev,
-      coins: newCoins,
-      readings: [...prev.readings, newReading]
-    }));
-
-    // Celebrate milestones
-    let milestoneMessage = 'Ritual complete. +10 Aether Coins earned.';
-    
-    // Coin milestones
-    if (newCoins === 100 || newCoins === 250 || newCoins === 500 || newCoins === 1000) {
-      milestoneMessage = `🎉 ${newCoins} Aether Coins! You're building power.`;
-      triggerHaptic('success');
-    }
-    
-    // Reading milestones
-    if (newReadingsCount === 10 || newReadingsCount === 25 || newReadingsCount === 50 || newReadingsCount === 100) {
-      milestoneMessage = `✨ ${newReadingsCount} readings collected! Your grimoire grows.`;
-      triggerHaptic('success');
-    }
-    
-    // Special achievement for first reading
-    if (newReadingsCount === 1) {
-      milestoneMessage = '✨ First reading complete. The void welcomes you.';
-      triggerHaptic('success');
-    }
-    
-    addNotification(milestoneMessage, 'success');
-    triggerHaptic('success');
-    setTimeout(() => setView('result'), 500);
-  }, [currentMood, addNotification]);
 
   const handleShare = useCallback(async () => {
     if (!reading || isLoading) return;

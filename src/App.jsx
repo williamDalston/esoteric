@@ -501,6 +501,21 @@ export default function App() {
     triggerHaptic('light');
   }, [isProcessing]);
 
+  // Define generateAuraVisual before completeRitual to avoid forward reference
+  const generateAuraVisual = useCallback((seed, mood) => {
+    const hue1 = (seed * 360) % 360;
+    const hue2 = ((seed * 360) + 120) % 360;
+    const hue3 = ((seed * 360) + 240) % 360;
+    
+    return {
+      gradient1: `hsl(${hue1}, 70%, 50%)`,
+      gradient2: `hsl(${hue2}, 70%, 50%)`,
+      gradient3: `hsl(${hue3}, 70%, 50%)`,
+      position: seed * 100,
+      rotation: seed * 360
+    };
+  }, []);
+
   // Define completeRitual before handleRitualPress to avoid forward reference
   const completeRitual = useCallback(() => {
     const randomCard = TAROT_CARDS[Math.floor(Math.random() * TAROT_CARDS.length)];
@@ -553,7 +568,7 @@ export default function App() {
     addNotification(milestoneMessage, 'success');
     triggerHaptic('success');
     setTimeout(() => setView('result'), 500);
-  }, [currentMood, addNotification, userData.coins, userData.readings]);
+  }, [currentMood, addNotification, userData.coins, userData.readings, generateAuraVisual]);
 
   const handleRitualPress = useCallback((e) => {
     e.preventDefault();
@@ -599,20 +614,6 @@ export default function App() {
       addNotification('Ritual interrupted. Hold longer to complete.', 'info');
     }
   }, [ritualProgress, addNotification]);
-
-  const generateAuraVisual = (seed, mood) => {
-    const hue1 = (seed * 360) % 360;
-    const hue2 = ((seed * 360) + 120) % 360;
-    const hue3 = ((seed * 360) + 240) % 360;
-    
-    return {
-      gradient1: `hsl(${hue1}, 70%, 50%)`,
-      gradient2: `hsl(${hue2}, 70%, 50%)`,
-      gradient3: `hsl(${hue3}, 70%, 50%)`,
-      position: seed * 100,
-      rotation: seed * 360
-    };
-  };
 
   const handleShare = useCallback(async () => {
     if (!reading || isLoading) return;

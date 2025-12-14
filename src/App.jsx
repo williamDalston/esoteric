@@ -939,6 +939,11 @@ export default function App() {
               Begin Your Journey
             </Button>
           </div>
+          
+          {/* Subtle credit */}
+          <p className="text-white/20 text-xs font-mono tracking-widest mt-8 animate-in fade-in" style={{ animationDelay: '0.6s' }}>
+            By Will A. For Iamê M.
+          </p>
         </div>
       </div>
     );
@@ -1178,8 +1183,15 @@ export default function App() {
              <CreditCard className="w-6 h-6 sm:w-7 sm:h-7" />
            </div>
            <span className="font-serif text-white text-sm sm:text-base group-hover:text-rose-300 transition-colors">SOS Read</span>
-           <span className="font-mono text-xs text-white/50">$1.99 • Instant</span>
+            <span className="font-mono text-xs text-white/50">$1.99 • Instant</span>
         </GlassCard>
+      </div>
+      
+      {/* Subtle credit footer */}
+      <div className="relative z-10 pt-4 pb-2 text-center">
+        <p className="text-white/15 text-[10px] font-mono tracking-[0.2em] uppercase">
+          By Will A. For Iamê M.
+        </p>
       </div>
     </div>
     );

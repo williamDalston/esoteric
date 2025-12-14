@@ -2,25 +2,35 @@
 
 > **Modern Mischief. Sacred Systems. Viral Magic.**
 
-A viral-first, spiritually-infused social discovery app that bridges ancient ritual, AI-generated divination, and real-world synchronicity.
+A viral-first, spiritually-infused discovery app that bridges ancient ritual, generative divination, and real-world synchronicity.
 
 ## Features
 
-### Core MVP Features
+### Core Features
 
-- **Mood Compass**: Select your emotional state to influence AI-generated visuals
-- **AI-Generated Tarot**: One-of-a-kind aura/tarot visuals using dynamic gradient generation
-- **Haptic Rituals**: Press-and-hold interactions for ritual completion
-- **Digital Altar**: Daily check-ins with streak tracking and collectible items
-- **Shadow Send**: Viral sharing mechanism - send blurred readings to non-users
+- **Mood Compass**: Select your emotional state to influence your readings
+- **Daily Divination**: Hold-to-complete ritual with 22 Major Arcana tarot cards
+- **Shadow Roasts & Mystic Guidance**: Each reading is either brutally honest or gently uplifting
+- **Bond Roast**: Relationship compatibility readings for any two people
+- **Digital Altar**: Daily check-ins with streak tracking and coin rewards
+- **Sanctuary Map**: Discover fictional "energy convergence points" near you
+- **Shadow Send**: Share blurred readings that unlock for recipients
 - **Shareable Cards**: Every reading is unique and share-worthy
 
 ### Design System
 
-- **Glassmorphism**: Frosted glass UI elements with backdrop blur
+- **Glassmorphism**: Frosted glass UI with backdrop blur and gradient borders
 - **Aurora Gradients**: Dynamic, mood-responsive color systems
-- **Typography**: Monospace (tech) × High-contrast serif (ritual)
+- **Typography**: JetBrains Mono (UI) × Cinzel (ritual headings) × Crimson Text (body)
 - **Voice**: Mysterious but playful, meme-savvy, irreverent
+
+### Technical Features
+
+- **PWA Ready**: Installable on mobile devices
+- **Haptic Feedback**: Vibration patterns for ritual interactions
+- **Keyboard Shortcuts**: Cmd/Ctrl + 1/2/3 for navigation, Space to start ritual
+- **Accessibility**: ARIA labels, focus states, screen reader support
+- **Offline-First**: LocalStorage persistence
 
 ## Getting Started
 
@@ -36,7 +46,7 @@ npm install
 npm run dev
 ```
 
-The app will open at `http://localhost:3000`
+The app will open at `http://localhost:5173`
 
 ### Build
 
@@ -44,33 +54,36 @@ The app will open at `http://localhost:3000`
 npm run build
 ```
 
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
 ## Tech Stack
 
-- **React 18** - UI framework
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling with custom glassmorphism utilities
-- **Lucide React** - Icon library
-- **LocalStorage** - Data persistence (MVP)
+- **React 18** — UI framework
+- **Vite 5** — Build tool and dev server
+- **Tailwind CSS** — Styling with custom glassmorphism utilities
+- **Leaflet + React-Leaflet** — Interactive sanctuary map
+- **Lucide React** — Icon library
+- **LocalStorage** — Data persistence
 
-## Roadmap
+## Project Structure
 
-### Phase 1 (Current)
-- ✅ Mood Compass
-- ✅ AI Tarot Visuals
-- ✅ Digital Altar
-- ✅ Shadow Send
+```
+src/
+├── App.jsx          # Main app with all views
+├── BondRoast.jsx    # Relationship compatibility feature
+├── index.css        # Tailwind + custom animations
+└── main.jsx         # React entry point
 
-### Phase 2
-- [ ] Location-based Talisman Collection
-- [ ] Ghost Mode Map
-- [ ] Auto-share visuals
-- [ ] Backend integration (Firebase/Node.js)
-
-### Phase 3
-- [ ] Compatibility Bonds (Roast My Bond)
-- [ ] Social Covens
-- [ ] Sanctuary Network
-- [ ] Monetization (SOS Reads, Subscriptions)
+public/
+├── manifest.json    # PWA manifest
+├── favicon.svg      # App icon
+├── icon-*.svg       # PWA icons
+└── og-image.svg     # Social sharing image
+```
 
 ## License
 
@@ -78,5 +91,6 @@ MIT
 
 ---
 
-*"Re-enchant daily life. Create spiritual collectibility. Build safe, meaningful social bonds offline."*
+*By Will A. For Iamê M.*
 
+*"Re-enchant daily life. Create spiritual collectibility. Build safe, meaningful social bonds."*

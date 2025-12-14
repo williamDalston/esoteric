@@ -81,6 +81,7 @@ const triggerHaptic = (type = 'light') => {
 const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
   const [roastResult, setRoastResult] = useState(null);
   const [revealed, setRevealed] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const name1Ref = useRef(null);
   const name2Ref = useRef(null);
   
@@ -96,26 +97,34 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
     const name1 = name1Ref.current?.value?.trim() || 'Person A';
     const name2 = name2Ref.current?.value?.trim() || 'Person B';
     
-    const pattern = BOND_PATTERNS[Math.floor(Math.random() * BOND_PATTERNS.length)];
+    // Start dramatic analysis phase
+    setIsAnalyzing(true);
+    triggerHaptic('light');
     
-    // Randomly assign types to names (so it's not always name1 = type1)
-    const flip = Math.random() > 0.5;
-    
-    const roast = {
-      id: Date.now(),
-      name1,
-      name2,
-      type1: flip ? pattern.type2 : pattern.type1,
-      type2: flip ? pattern.type1 : pattern.type2,
-      roast: pattern.roast,
-      compatibility: pattern.compatibility,
-    };
-    
-    setRoastResult(roast);
-    triggerHaptic('success');
-    if (onNotification) {
-      onNotification('Bond roasted. Share the chaos.', 'success');
-    }
+    // Dramatic pause before revealing
+    setTimeout(() => {
+      const pattern = BOND_PATTERNS[Math.floor(Math.random() * BOND_PATTERNS.length)];
+      
+      // Randomly assign types to names (so it's not always name1 = type1)
+      const flip = Math.random() > 0.5;
+      
+      const roast = {
+        id: Date.now(),
+        name1,
+        name2,
+        type1: flip ? pattern.type2 : pattern.type1,
+        type2: flip ? pattern.type1 : pattern.type2,
+        roast: pattern.roast,
+        compatibility: pattern.compatibility,
+      };
+      
+      setIsAnalyzing(false);
+      setRoastResult(roast);
+      triggerHaptic('success');
+      if (onNotification) {
+        onNotification('Bond roasted. Share the chaos.', 'success');
+      }
+    }, 1500); // 1.5 second dramatic pause
   };
   
   const handleNewRoast = () => {
@@ -155,7 +164,29 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
       <div className="absolute inset-0 particle-bg opacity-20" />
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/10 to-pink-900/10" />
       
-      {!roastResult ? (
+      {/* Analyzing state - dramatic reveal */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in">
+          <div className="relative">
+            {/* Rotating rings */}
+            <div className="w-32 h-32 rounded-full border-2 border-purple-500/30 animate-spin" style={{ animationDuration: '3s' }} />
+            <div className="absolute inset-2 rounded-full border-2 border-pink-500/30 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+            <div className="absolute inset-4 rounded-full border-2 border-indigo-500/30 animate-spin" style={{ animationDuration: '4s' }} />
+            
+            {/* Center icon */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <User className="w-8 h-8 text-purple-400 animate-pulse" />
+            </div>
+          </div>
+          
+          <div className="mt-8 text-center space-y-2">
+            <p className="text-white font-serif text-xl animate-pulse">Analyzing bond...</p>
+            <p className="text-white/50 font-mono text-xs">Reading energetic signatures</p>
+          </div>
+        </div>
+      )}
+      
+      {!roastResult && !isAnalyzing ? (
         <GlassCard className="p-6 sm:p-8 w-full max-w-md space-y-6" intense>
           <div className="text-center space-y-2">
             <User className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-indigo-400" />
@@ -234,7 +265,9 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
             Back to Loop
           </Button>
         </GlassCard>
-      ) : (
+      ) : null}
+      
+      {roastResult && (
         <>
           <GlassCard className={`p-6 sm:p-8 w-full max-w-md space-y-6 ${revealed ? 'animate-card-reveal' : 'opacity-0'}`} intense>
             <div className="text-center space-y-3">

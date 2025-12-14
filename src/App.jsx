@@ -1225,8 +1225,8 @@ export default function App() {
            <div className="p-3 sm:p-4 rounded-full bg-gradient-to-br from-rose-500/30 to-pink-500/30 text-rose-300 group-hover:from-rose-500/50 group-hover:to-pink-500/50 transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(244,63,94,0.4)]">
              <CreditCard className="w-6 h-6 sm:w-7 sm:h-7" />
            </div>
-           <span className="font-serif text-white text-sm sm:text-base group-hover:text-rose-300 transition-colors">SOS Read</span>
-            <span className="font-mono text-xs text-white/50">$1.99 • Instant</span>
+<span className="font-serif text-white text-sm sm:text-base group-hover:text-rose-300 transition-colors">SOS Read</span>
+           <span className="font-mono text-xs text-white/50">Premium • Soon</span>
         </GlassCard>
       </div>
       

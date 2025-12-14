@@ -289,7 +289,9 @@ export default function App() {
     };
   }, []);
 
-  // Keyboard shortcuts & power user features
+  // Keyboard shortcuts - uses startRitualRef to avoid forward reference
+  const startRitualRef = useRef(null);
+  
   useEffect(() => {
     const handleKeyDown = (e) => {
       // ESC to close modals/exit views
@@ -328,9 +330,9 @@ export default function App() {
             triggerHaptic('light');
             break;
           case 'r':
-            if (view === 'dashboard') {
+            if (view === 'dashboard' && startRitualRef.current) {
               e.preventDefault();
-              startRitual();
+              startRitualRef.current();
             }
             break;
           case 'b':
@@ -344,15 +346,15 @@ export default function App() {
       }
       
       // Spacebar to start ritual when on dashboard
-      if (e.key === ' ' && view === 'dashboard' && !e.target.matches('input, textarea, button')) {
+      if (e.key === ' ' && view === 'dashboard' && !e.target.matches('input, textarea, button') && startRitualRef.current) {
         e.preventDefault();
-        startRitual();
+        startRitualRef.current();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showPaywall, view, startRitual]);
+  }, [showPaywall, view]);
   
   // Konami Code Easter Egg (up up down down left right left right b a)
   useEffect(() => {
@@ -501,6 +503,11 @@ export default function App() {
     triggerHaptic('light');
   }, [isProcessing]);
 
+  // Keep startRitualRef in sync
+  useEffect(() => {
+    startRitualRef.current = startRitual;
+  }, [startRitual]);
+
   // Define generateAuraVisual before completeRitual to avoid forward reference
   const generateAuraVisual = useCallback((seed, mood) => {
     const hue1 = (seed * 360) % 360;
@@ -615,33 +622,7 @@ export default function App() {
     }
   }, [ritualProgress, addNotification]);
 
-  const handleShare = useCallback(async () => {
-    if (!reading || isLoading) return;
-    setIsLoading(true);
-    
-    const shareData = {
-      title: `My Mystic Loop Reading: ${reading.card.name}`,
-      text: reading.type === 'roast' ? reading.card.roast : reading.card.light,
-      url: window.location.href
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        addNotification("Reading shared to the void", 'success');
-        triggerHaptic('success');
-      } else {
-        await copyToClipboard();
-      }
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        await copyToClipboard();
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [reading, isLoading, addNotification]);
-
+  // Define copyToClipboard BEFORE handleShare to avoid forward reference
   const copyToClipboard = useCallback(async () => {
     if (!reading) return;
     const text = `🔮 ${reading.card.name} - ${reading.type === 'roast' ? reading.card.roast : reading.card.light}\n\nFrom Mystic Loop: The Algorithmic Coven`;
@@ -670,6 +651,33 @@ export default function App() {
       addNotification("Failed to copy. Please try again.", 'error');
     }
   }, [reading, addNotification]);
+
+  const handleShare = useCallback(async () => {
+    if (!reading || isLoading) return;
+    setIsLoading(true);
+    
+    const shareData = {
+      title: `My Mystic Loop Reading: ${reading.card.name}`,
+      text: reading.type === 'roast' ? reading.card.roast : reading.card.light,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        addNotification("Reading shared to the void", 'success');
+        triggerHaptic('success');
+      } else {
+        await copyToClipboard();
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        await copyToClipboard();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [reading, isLoading, addNotification, copyToClipboard]);
 
   const createShadowSend = useCallback(() => {
     if (!reading || isLoading) return;

@@ -35,16 +35,29 @@ const MOODS = [
 ];
 
 const TAROT_CARDS = [
+  // The 22 Major Arcana
   { name: "The Fool", archetype: "New Beginnings", roast: "You're walking off a cliff and calling it 'manifesting'.", light: "Trust the unknown. Leap." },
-  { name: "The Tower", archetype: "Sudden Change", roast: "Your foundation was trash anyway. Let it burn.", light: "Liberation through destruction." },
+  { name: "The Magician", archetype: "Willpower", roast: "You have all the tools and none of the follow-through.", light: "Everything you need is already within you." },
   { name: "The High Priestess", archetype: "Intuition", roast: "Stop texting them. You already know the answer.", light: "Listen to the silence." },
+  { name: "The Empress", archetype: "Abundance", roast: "You're nurturing everyone except yourself. How's that working?", light: "Creation flows through you. Receive it." },
+  { name: "The Emperor", archetype: "Authority", roast: "Control issues aren't a personality. They're a problem.", light: "Structure creates freedom. Build wisely." },
+  { name: "The Hierophant", archetype: "Tradition", roast: "Following rules that don't serve you isn't virtue. It's fear.", light: "Some wisdom is ancient for a reason." },
+  { name: "The Lovers", archetype: "Choice", roast: "You're choosing chaos again. We see you.", light: "Align with your highest values." },
+  { name: "The Chariot", archetype: "Determination", roast: "Willpower without direction is just stubbornness with extra steps.", light: "Victory belongs to those who move." },
+  { name: "Strength", archetype: "Inner Power", roast: "Brute force isn't strength. Your soft skills need work.", light: "Gentleness tames what force cannot." },
+  { name: "The Hermit", archetype: "Solitude", roast: "You ghost everyone and call it 'self-care'.", light: "Wisdom comes from within." },
+  { name: "Wheel of Fortune", archetype: "Cycles", roast: "Blaming luck for your patterns is getting old.", light: "Change is the only constant. Embrace the spin." },
+  { name: "Justice", archetype: "Truth", roast: "Karma's not a threat. It's a receipt. And yours is long.", light: "Truth cuts clean. Let it." },
+  { name: "The Hanged Man", archetype: "Surrender", roast: "You're stuck because you won't let go. Not mysterious, just stubborn.", light: "New perspective requires releasing the old view." },
   { name: "Death", archetype: "Transformation", roast: "That version of you is expired. Bury it.", light: "Endings are just fertilizer." },
+  { name: "Temperance", archetype: "Balance", roast: "Moderation? You? Let's be realistic here.", light: "Alchemy happens in the middle path." },
   { name: "The Devil", archetype: "Addiction", roast: "You are your own toxicity. Cute chains though.", light: "Reclaim your power from desire." },
+  { name: "The Tower", archetype: "Sudden Change", roast: "Your foundation was trash anyway. Let it burn.", light: "Liberation through destruction." },
   { name: "The Star", archetype: "Hope", roast: "Stop wishing, start doing, space cadet.", light: "Healing is available now." },
   { name: "The Moon", archetype: "Illusion", roast: "You're lost in your own delusion. Classic.", light: "Trust your intuition over fear." },
   { name: "The Sun", archetype: "Joy", roast: "Your optimism is showing. Cringe but valid.", light: "Radiate your authentic light." },
-  { name: "The Hermit", archetype: "Solitude", roast: "You ghost everyone and call it 'self-care'.", light: "Wisdom comes from within." },
-  { name: "The Lovers", archetype: "Choice", roast: "You're choosing chaos again. We see you.", light: "Align with your highest values." },
+  { name: "Judgement", archetype: "Rebirth", roast: "The call to rise came. You hit snooze. Again.", light: "Answer the call. You're ready." },
+  { name: "The World", archetype: "Completion", roast: "You finished something? Genuinely shocked. Congrats.", light: "A cycle completes. Celebrate before the next begins." },
 ];
 
 

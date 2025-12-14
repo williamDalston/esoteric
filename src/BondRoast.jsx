@@ -1,28 +1,32 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { User, Share2 } from 'lucide-react';
 
-// Bond patterns data
+// Bond patterns data - uses {name1} and {name2} placeholders for dynamic insertion
 const BOND_PATTERNS = [
-  { you: "Ghost", them: "Clinger", roast: "You're already gone, they're already attached. Classic avoidant-anxious dance.", compatibility: 23 },
-  { you: "Manifestor", them: "Realist", roast: "You believe in vibrations, they believe in math. Both are wrong.", compatibility: 45 },
-  { you: "Healer", them: "Vampire", roast: "You give energy, they take it. At least someone's winning.", compatibility: 31 },
-  { you: "Chaos", them: "Chaos", roast: "Two disasters don't make a party. They make a war zone.", compatibility: 67 },
-  { you: "Flirt", them: "Serious", roast: "You're playing games, they want marriage. Someone's getting hurt.", compatibility: 28 },
-  { you: "Independent", them: "Clingy", roast: "You need space, they need a hug. Find a middle ground (or don't).", compatibility: 34 },
-  { you: "Mystic", them: "Skeptic", roast: "You read tarot, they read receipts. This ends in therapy.", compatibility: 42 },
-  { you: "Empath", them: "Narcissist", roast: "You feel everything, they feel nothing. Perfect match (said no one ever).", compatibility: 19 },
-  { you: "Wild", them: "Stable", roast: "You're chaos, they're a rock. One of you will break.", compatibility: 51 },
-  { you: "Healing", them: "Healing", roast: "Two broken people trying to fix each other. Cute but doomed.", compatibility: 38 },
-  { you: "Alchemist", them: "Planner", roast: "You manifest, they strategize. Both think you're right.", compatibility: 56 },
-  { you: "Free", them: "Possessive", roast: "You want freedom, they want ownership. Red flag parade.", compatibility: 15 },
-  { you: "Giver", them: "Taker", roast: "You pour into an empty cup. They never fill back.", compatibility: 22 },
-  { you: "Dreamer", them: "Achiever", roast: "You dream, they do. One of you will resent the other.", compatibility: 47 },
-  { you: "Twin Flame", them: "Karmic", roast: "You think it's destiny, it's just trauma. Classic.", compatibility: 29 },
-  { you: "Light", them: "Shadow", roast: "You're all love and light, they're all darkness. Yin and yang, but toxic.", compatibility: 44 },
-  { you: "Wanderer", them: "Homebody", roast: "You want to explore, they want to nest. Someone's compromising too much.", compatibility: 48 },
-  { you: "Fire", them: "Water", roast: "Steam or extinguish? Either way, someone's getting burned or drowned.", compatibility: 53 },
-  { you: "Evolved", them: "Stuck", roast: "You've done the work, they haven't started. Good luck with that.", compatibility: 37 },
-  { you: "Boundaries", them: "None", roast: "You say no, they don't listen. Fun.", compatibility: 26 },
+  { type1: "The Ghost", type2: "The Anchor", roast: "One's already halfway out the door while the other is picking out curtains. The avoidant-anxious tango never ends well.", compatibility: 23 },
+  { type1: "The Mystic", type2: "The Skeptic", roast: "One reads tarot, the other reads spreadsheets. They'll either balance each other or drive each other insane. No in-between.", compatibility: 42 },
+  { type1: "The Giver", type2: "The Taker", roast: "An endless pour into a bottomless cup. Beautiful codependency dressed up as love.", compatibility: 22 },
+  { type1: "The Chaos", type2: "The Chaos", roast: "Two tornados in a trailer park. Exhilarating until someone loses a roof.", compatibility: 67 },
+  { type1: "The Healer", type2: "The Wounded", roast: "One wants to fix, one wants to be saved. Neither gets what they actually need.", compatibility: 31 },
+  { type1: "The Flirt", type2: "The Serious", roast: "One's collecting options, the other's planning a future. This math doesn't add up.", compatibility: 28 },
+  { type1: "The Free Spirit", type2: "The Possessive", roast: "A bird and a cage. Someone's getting their wings clipped or their heart broken.", compatibility: 15 },
+  { type1: "The Dreamer", type2: "The Doer", roast: "Vision meets execution. Could be powerful, could be resentment in three years.", compatibility: 52 },
+  { type1: "The Empath", type2: "The Closed-Off", roast: "One feels everything, the other feels nothing. An emotional translator is needed.", compatibility: 35 },
+  { type1: "The Fire", type2: "The Water", roast: "They'll either make steam or put each other out. Passion or extinction.", compatibility: 53 },
+  { type1: "The Wanderer", type2: "The Homebody", roast: "One needs adventure, one needs roots. Someone will always be compromising.", compatibility: 48 },
+  { type1: "The Overthinker", type2: "The Impulsive", roast: "One's still analyzing while the other already moved on. Timing is everything they don't have.", compatibility: 41 },
+  { type1: "The Optimist", type2: "The Realist", roast: "One sees potential, one sees patterns. Both are right and that's the problem.", compatibility: 55 },
+  { type1: "The Loud", type2: "The Quiet", roast: "One fills the silence, one craves it. A lesson in volume control neither signed up for.", compatibility: 46 },
+  { type1: "The Healing", type2: "The Healing", roast: "Two people doing the work, on themselves, at different speeds. Beautiful and exhausting.", compatibility: 61 },
+  { type1: "The Old Soul", type2: "The Peter Pan", roast: "One wants depth, one wants play. They're reading different books in the same room.", compatibility: 38 },
+  { type1: "The Planner", type2: "The Spontaneous", roast: "One has a five-year plan, one doesn't know what's for dinner. Flexibility required.", compatibility: 44 },
+  { type1: "The Words", type2: "The Actions", roast: "One speaks love, one shows it. They're both saying 'I love you' in languages the other doesn't hear.", compatibility: 58 },
+  { type1: "The Boundary", type2: "The Boundless", roast: "One says no, the other doesn't understand why. A crash course in limits.", compatibility: 33 },
+  { type1: "The Mirror", type2: "The Mirror", roast: "So similar they'll either merge or compete. There's no room for two main characters.", compatibility: 49 },
+  { type1: "The Storm", type2: "The Calm", roast: "One brings intensity, one brings peace. They need each other more than they know.", compatibility: 64 },
+  { type1: "The Past", type2: "The Future", roast: "One's still processing yesterday, one's already living tomorrow. The present is where they keep missing each other.", compatibility: 36 },
+  { type1: "The Romantic", type2: "The Practical", roast: "One wants poetry, one wants partnership. Love speaks many dialects.", compatibility: 51 },
+  { type1: "The Seen", type2: "The Hidden", roast: "One lives out loud, one keeps it inside. Intimacy means showing the parts you hide.", compatibility: 43 },
 ];
 
 // GlassCard component (simplified version)
@@ -89,17 +93,20 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
   }, [roastResult]);
   
   const handleGenerateRoast = () => {
-    const name1 = name1Ref.current?.value?.trim() || 'You';
-    const name2 = name2Ref.current?.value?.trim() || 'Them';
+    const name1 = name1Ref.current?.value?.trim() || 'Person A';
+    const name2 = name2Ref.current?.value?.trim() || 'Person B';
     
     const pattern = BOND_PATTERNS[Math.floor(Math.random() * BOND_PATTERNS.length)];
+    
+    // Randomly assign types to names (so it's not always name1 = type1)
+    const flip = Math.random() > 0.5;
     
     const roast = {
       id: Date.now(),
       name1,
       name2,
-      you: pattern.you,
-      them: pattern.them,
+      type1: flip ? pattern.type2 : pattern.type1,
+      type2: flip ? pattern.type1 : pattern.type2,
       roast: pattern.roast,
       compatibility: pattern.compatibility,
     };
@@ -119,7 +126,7 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
   
   const handleShare = async () => {
     if (!roastResult) return;
-    const text = `🔮 Bond Roast: ${roastResult.name1} (${roastResult.you}) vs ${roastResult.name2} (${roastResult.them})\n${roastResult.compatibility}% Compatible\n\n"${roastResult.roast}"\n\n— Mystic Loop: Modern Mischief. Sacred Systems. Viral Magic.`;
+    const text = `🔮 Bond Roast: ${roastResult.name1} (${roastResult.type1}) & ${roastResult.name2} (${roastResult.type2})\n${roastResult.compatibility}% Compatible\n\n"${roastResult.roast}"\n\n— Mystic Loop`;
     
     if (navigator.share) {
       try {
@@ -156,20 +163,20 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
               Bond Roast
             </h2>
             <p className="text-white/70 text-xs sm:text-sm px-2">
-              Get brutally honest relationship compatibility readings. Enter two names (or leave blank for "You" vs "Them").
+              Brutally honest compatibility readings. Enter any two names—yourself and someone else, two friends, exes, situationships, whoever.
             </p>
           </div>
           
           <div className="space-y-4">
             <div>
               <label className="text-white/70 text-xs font-mono uppercase tracking-wider block mb-2">
-                First Person (or "You")
+                First Person
               </label>
               <input
                 ref={name1Ref}
                 type="text"
                 defaultValue=""
-                placeholder="You"
+                placeholder="Name"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 maxLength={20}
                 autoComplete="off"
@@ -182,19 +189,19 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
             
             <div className="flex items-center justify-center py-2">
               <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              <span className="px-4 text-white/40 font-serif">vs</span>
+              <span className="px-4 text-white/40 font-serif">&</span>
               <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             </div>
             
             <div>
               <label className="text-white/70 text-xs font-mono uppercase tracking-wider block mb-2">
-                Second Person (or "Them")
+                Second Person
               </label>
               <input
                 ref={name2Ref}
                 type="text"
                 defaultValue=""
-                placeholder="Them"
+                placeholder="Name"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 maxLength={20}
                 autoComplete="off"
@@ -232,14 +239,14 @@ const BondRoast = memo(function BondRoast({ onBack, onNotification }) {
           <GlassCard className={`p-6 sm:p-8 w-full max-w-md space-y-6 ${revealed ? 'animate-card-reveal' : 'opacity-0'}`} intense>
             <div className="text-center space-y-3">
               <div className="flex items-center justify-center gap-3 sm:gap-4">
-                <div className="text-center p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 glass-premium">
+                <div className="text-center p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 glass-premium min-w-[100px]">
                   <div className="text-base sm:text-lg font-serif text-white text-glow">{roastResult.name1}</div>
-                  <div className="text-xs font-mono text-indigo-400 uppercase mt-1">{roastResult.you}</div>
+                  <div className="text-xs font-mono text-indigo-400 mt-1">{roastResult.type1}</div>
                 </div>
-                <div className="text-white/40 text-xl sm:text-2xl font-serif animate-pulse">vs</div>
-                <div className="text-center p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 glass-premium">
+                <div className="text-white/40 text-xl sm:text-2xl font-serif animate-pulse">&</div>
+                <div className="text-center p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 glass-premium min-w-[100px]">
                   <div className="text-base sm:text-lg font-serif text-white text-glow">{roastResult.name2}</div>
-                  <div className="text-xs font-mono text-purple-400 uppercase mt-1">{roastResult.them}</div>
+                  <div className="text-xs font-mono text-purple-400 mt-1">{roastResult.type2}</div>
                 </div>
               </div>
             </div>

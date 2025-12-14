@@ -1139,6 +1139,7 @@ export default function App() {
           hoverable
           onClick={() => {
             triggerHaptic('light');
+            // Use setView directly to avoid transition delays that interfere with input
             setView('bondRoast');
           }}
         >
@@ -1942,6 +1943,8 @@ export default function App() {
                 placeholder="You"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 maxLength={20}
+                autoComplete="off"
+                autoFocus={false}
               />
             </div>
             
@@ -1962,6 +1965,8 @@ export default function App() {
                 placeholder="Them"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 maxLength={20}
+                autoComplete="off"
+                autoFocus={false}
               />
             </div>
           </div>
@@ -2340,7 +2345,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Page Transitions */}
+      {/* Page Transitions - exclude bondRoast from transition to prevent input issues */}
       <div className={`transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {view === 'welcome' && <WelcomeScreen />}
         {view === 'mood' && <MoodCompass />}
@@ -2350,8 +2355,10 @@ export default function App() {
         {view === 'altar' && <AltarView />}
         {view === 'sanctuary' && <SanctuaryMap />}
         {view === 'shadowSend' && <ShadowSendView />}
-        {view === 'bondRoast' && <BondRoastView />}
       </div>
+      
+      {/* BondRoast rendered outside transition wrapper to prevent input focus issues */}
+      {view === 'bondRoast' && <BondRoastView />}
       
       {showPaywall && <PaywallModal />}
 

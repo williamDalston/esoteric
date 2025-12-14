@@ -755,27 +755,45 @@ export default function App() {
   );
 
   const SanctuaryMap = () => (
-      <div className="min-h-screen relative bg-gray-900">
-          <div className="absolute inset-0 opacity-30">
-               <div className="w-full h-full bg-[radial-gradient(#333_1px,transparent_1px)] [background-size:16px_16px]"></div>
+      <div className="min-h-screen relative bg-gray-900 pb-28">
+          <div className="absolute inset-0 opacity-40">
+               {/* Enhanced Map Background */}
+               <div className="w-full h-full bg-[radial-gradient(#444_1px,transparent_1px)] [background-size:20px_20px]"></div>
           </div>
           
-          <div className="absolute top-1/4 left-1/4 animate-bounce duration-[2000ms]">
-              <MapPin className="w-8 h-8 text-purple-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+          <div className="absolute inset-0 particle-bg opacity-20" />
+          
+          {/* Enhanced POIs with pulsing effects */}
+          <div className="absolute top-1/4 left-1/4 animate-float">
+              <div className="relative">
+                <MapPin className="w-10 h-10 text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] relative z-10" />
+                <div className="absolute inset-0 w-10 h-10 bg-purple-500/30 rounded-full blur-xl animate-pulse" />
+              </div>
           </div>
-          <div className="absolute top-1/2 left-1/2 animate-bounce duration-[2500ms]">
-              <MapPin className="w-8 h-8 text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+          <div className="absolute top-1/2 left-1/2 animate-float" style={{ animationDelay: '0.5s' }}>
+              <div className="relative">
+                <MapPin className="w-10 h-10 text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)] relative z-10" />
+                <div className="absolute inset-0 w-10 h-10 bg-emerald-500/30 rounded-full blur-xl animate-pulse" />
+              </div>
+          </div>
+          <div className="absolute top-2/3 right-1/4 animate-float" style={{ animationDelay: '1s' }}>
+              <div className="relative">
+                <MapPin className="w-10 h-10 text-pink-400 drop-shadow-[0_0_15px_rgba(236,72,153,0.8)] relative z-10" />
+                <div className="absolute inset-0 w-10 h-10 bg-pink-500/30 rounded-full blur-xl animate-pulse" />
+              </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent space-y-4">
-              <GlassCard className="p-4 flex items-start gap-4">
-                  <Shield className="w-8 h-8 text-emerald-400 shrink-0" />
+          <div className="absolute bottom-0 left-0 right-0 p-6 pb-32 bg-gradient-to-t from-black via-black/95 to-transparent space-y-4">
+              <GlassCard className="p-5 flex items-start gap-4" intense>
+                  <div className="p-3 bg-emerald-500/20 rounded-lg shrink-0">
+                    <Shield className="w-6 h-6 text-emerald-400" />
+                  </div>
                   <div>
-                      <h3 className="text-white font-serif">Ghost Mode Active</h3>
-                      <p className="text-white/60 text-xs mt-1">Your exact location is fuzzed by 400m. Only verified covens can see your true signal.</p>
+                      <h3 className="text-white font-serif text-lg mb-1">Ghost Mode Active</h3>
+                      <p className="text-white/60 text-xs leading-relaxed">Your exact location is fuzzed by 400m. Only verified covens can see your true signal.</p>
                   </div>
               </GlassCard>
-              <Button className="w-full" onClick={() => setView('dashboard')}>Exit Sanctuary</Button>
+              <Button className="w-full" variant="secondary" onClick={() => setView('dashboard')}>Exit Sanctuary</Button>
           </div>
       </div>
   );

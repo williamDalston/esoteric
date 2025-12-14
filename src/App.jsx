@@ -47,28 +47,6 @@ const TAROT_CARDS = [
   { name: "The Lovers", archetype: "Choice", roast: "You're choosing chaos again. We see you.", light: "Align with your highest values." },
 ];
 
-const BOND_PATTERNS = [
-  { you: "Ghost", them: "Clinger", roast: "You're already gone, they're already attached. Classic avoidant-anxious dance.", compatibility: 23 },
-  { you: "Manifestor", them: "Realist", roast: "You believe in vibrations, they believe in math. Both are wrong.", compatibility: 45 },
-  { you: "Healer", them: "Vampire", roast: "You give energy, they take it. At least someone's winning.", compatibility: 31 },
-  { you: "Chaos", them: "Chaos", roast: "Two disasters don't make a party. They make a war zone.", compatibility: 67 },
-  { you: "Flirt", them: "Serious", roast: "You're playing games, they want marriage. Someone's getting hurt.", compatibility: 28 },
-  { you: "Independent", them: "Clingy", roast: "You need space, they need a hug. Find a middle ground (or don't).", compatibility: 34 },
-  { you: "Mystic", them: "Skeptic", roast: "You read tarot, they read receipts. This ends in therapy.", compatibility: 42 },
-  { you: "Empath", them: "Narcissist", roast: "You feel everything, they feel nothing. Perfect match (said no one ever).", compatibility: 19 },
-  { you: "Wild", them: "Stable", roast: "You're chaos, they're a rock. One of you will break.", compatibility: 51 },
-  { you: "Healing", them: "Healing", roast: "Two broken people trying to fix each other. Cute but doomed.", compatibility: 38 },
-  { you: "Alchemist", them: "Planner", roast: "You manifest, they strategize. Both think you're right.", compatibility: 56 },
-  { you: "Free", them: "Possessive", roast: "You want freedom, they want ownership. Red flag parade.", compatibility: 15 },
-  { you: "Giver", them: "Taker", roast: "You pour into an empty cup. They never fill back.", compatibility: 22 },
-  { you: "Dreamer", them: "Achiever", roast: "You dream, they do. One of you will resent the other.", compatibility: 47 },
-  { you: "Twin Flame", them: "Karmic", roast: "You think it's destiny, it's just trauma. Classic.", compatibility: 29 },
-  { you: "Light", them: "Shadow", roast: "You're all love and light, they're all darkness. Yin and yang, but toxic.", compatibility: 44 },
-  { you: "Wanderer", them: "Homebody", roast: "You want to explore, they want to nest. Someone's compromising too much.", compatibility: 48 },
-  { you: "Fire", them: "Water", roast: "Steam or extinguish? Either way, someone's getting burned or drowned.", compatibility: 53 },
-  { you: "Evolved", them: "Stuck", roast: "You've done the work, they haven't started. Good luck with that.", compatibility: 37 },
-  { you: "Boundaries", them: "None", roast: "You say no, they don't listen. Fun.", compatibility: 26 },
-];
 
 // --- Utility Components ---
 const GlassCard = ({ children, className = "", intense = false, hoverable = false, onClick, glowing = false }) => (
@@ -1038,9 +1016,31 @@ export default function App() {
       return { text: "Good Night", icon: "🔮", mood: "The cosmos speaks." };
     };
     
+    // Calculate actual moon phase
+    const getMoonPhase = () => {
+      const now = new Date();
+      // Known new moon: January 11, 2024
+      const knownNewMoon = new Date(2024, 0, 11);
+      const lunarCycle = 29.53059; // days
+      const daysSinceNewMoon = (now - knownNewMoon) / (1000 * 60 * 60 * 24);
+      const currentCycleDay = daysSinceNewMoon % lunarCycle;
+      const phaseIndex = Math.floor((currentCycleDay / lunarCycle) * 8);
+      
+      const phases = [
+        { emoji: '🌑', name: 'New Moon' },
+        { emoji: '🌒', name: 'Waxing Crescent' },
+        { emoji: '🌓', name: 'First Quarter' },
+        { emoji: '🌔', name: 'Waxing Gibbous' },
+        { emoji: '🌕', name: 'Full Moon' },
+        { emoji: '🌖', name: 'Waning Gibbous' },
+        { emoji: '🌗', name: 'Last Quarter' },
+        { emoji: '🌘', name: 'Waning Crescent' },
+      ];
+      return phases[phaseIndex] || phases[0];
+    };
+    
     const greeting = getGreeting();
-    const moonPhases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
-    const currentMoonPhase = moonPhases[new Date().getDate() % 8];
+    const moonPhase = getMoonPhase();
     
     return (
       <div className="min-h-screen pb-28 sm:pb-24 p-4 sm:p-6 space-y-5 sm:space-y-6 animate-in slide-in-from-bottom-10 duration-500 relative">
@@ -1065,10 +1065,24 @@ export default function App() {
               <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
               <span className="text-white/20">•</span>
               <span className="text-purple-400 flex items-center gap-1">
-                {currentMoonPhase} <span className="hidden sm:inline">Waxing</span>
+                {moonPhase.emoji} <span className="hidden sm:inline">{moonPhase.name}</span>
               </span>
             </p>
             <p className="text-white/30 text-xs font-serif italic mt-1 hidden sm:block">{greeting.mood}</p>
+            {currentMood && (
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setView('mood');
+                }}
+                className="mt-2 flex items-center gap-1.5 text-xs font-mono text-white/40 hover:text-white/70 transition-colors group"
+              >
+                <currentMood.icon className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                <span>{currentMood.label}</span>
+                <span className="text-white/20">•</span>
+                <span className="text-purple-400/70 hover:text-purple-400">change</span>
+              </button>
+            )}
           </div>
           
           {/* Streak badge - enhanced */}

@@ -1,0 +1,26 @@
+{
+  "name": "Mystic Loop: The Algorithmic Coven",
+  "short_name": "Mystic Loop",
+  "description": "Modern Mischief. Sacred Systems. Viral Magic. AI divination, digital rituals, and spiritual collectibility.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#a855f7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "entertainment"],
+  "lang": "en"
+}

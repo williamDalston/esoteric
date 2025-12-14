@@ -246,8 +246,7 @@ export default function App() {
   const [locationError, setLocationError] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [bondRoast, setBondRoast] = useState(null);
-  const [bondName1, setBondName1] = useState('');
-  const [bondName2, setBondName2] = useState('');
+  // bondName1 and bondName2 now use refs (see bondName1Ref, bondName2Ref) to prevent re-render issues
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     try {
       return localStorage.getItem('mysticLoop_welcomeSeen') === 'true';
@@ -819,32 +818,7 @@ export default function App() {
     }
   }, [reading, isLoading, addNotification]);
 
-  const generateBondRoast = useCallback(() => {
-    const name1 = bondName1.trim() || 'You';
-    const name2 = bondName2.trim() || 'Them';
-    
-    // Select a random bond pattern
-    const pattern = BOND_PATTERNS[Math.floor(Math.random() * BOND_PATTERNS.length)];
-    
-    const roast = {
-      id: Date.now(),
-      name1,
-      name2,
-      you: pattern.you,
-      them: pattern.them,
-      roast: pattern.roast,
-      compatibility: pattern.compatibility,
-      timestamp: new Date()
-    };
-    
-    setBondRoast(roast);
-    setUserData(prev => ({
-      ...prev,
-      bondRoasts: [...(prev.bondRoasts || []), roast]
-    }));
-    triggerHaptic('success');
-    addNotification('Bond roasted. Share the chaos.', 'success');
-  }, [bondName1, bondName2, addNotification]);
+  // generateBondRoast moved to handleGenerateBondRoast (uses refs instead of state)
 
   // --- Sub-Components (Views) ---
   const WelcomeScreen = () => {
@@ -1909,6 +1883,38 @@ export default function App() {
     );
   };
 
+  // Refs for Bond Roast inputs (uncontrolled to prevent re-render issues)
+  const bondName1Ref = useRef(null);
+  const bondName2Ref = useRef(null);
+  
+  // Generate bond roast using refs
+  const handleGenerateBondRoast = useCallback(() => {
+    const name1 = bondName1Ref.current?.value?.trim() || 'You';
+    const name2 = bondName2Ref.current?.value?.trim() || 'Them';
+    
+    // Select a random bond pattern
+    const pattern = BOND_PATTERNS[Math.floor(Math.random() * BOND_PATTERNS.length)];
+    
+    const roast = {
+      id: Date.now(),
+      name1,
+      name2,
+      you: pattern.you,
+      them: pattern.them,
+      roast: pattern.roast,
+      compatibility: pattern.compatibility,
+      timestamp: new Date()
+    };
+    
+    setBondRoast(roast);
+    setUserData(prev => ({
+      ...prev,
+      bondRoasts: [...(prev.bondRoasts || []), roast]
+    }));
+    triggerHaptic('success');
+    addNotification('Bond roasted. Share the chaos.', 'success');
+  }, [addNotification]);
+
   const BondRoastView = () => {
     const [revealed, setRevealed] = useState(false);
     
@@ -1919,6 +1925,14 @@ export default function App() {
         setRevealed(false);
       }
     }, [bondRoast]);
+    
+    // Clear inputs when entering view without a roast
+    useEffect(() => {
+      if (!bondRoast) {
+        if (bondName1Ref.current) bondName1Ref.current.value = '';
+        if (bondName2Ref.current) bondName2Ref.current.value = '';
+      }
+    }, []);
     
     return (
       <div className="min-h-screen p-4 sm:p-6 pb-28 flex flex-col items-center justify-center space-y-6 animate-in fade-in relative overflow-hidden">
@@ -1944,14 +1958,16 @@ export default function App() {
                 First Person (or "You")
               </label>
               <input
+                ref={bondName1Ref}
                 type="text"
-                value={bondName1}
-                onChange={(e) => setBondName1(e.target.value)}
+                defaultValue=""
                 placeholder="You"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 maxLength={20}
                 autoComplete="off"
-                autoFocus={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
             </div>
             
@@ -1966,14 +1982,16 @@ export default function App() {
                 Second Person (or "Them")
               </label>
               <input
+                ref={bondName2Ref}
                 type="text"
-                value={bondName2}
-                onChange={(e) => setBondName2(e.target.value)}
+                defaultValue=""
                 placeholder="Them"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 maxLength={20}
                 autoComplete="off"
-                autoFocus={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
             </div>
           </div>
@@ -1981,7 +1999,7 @@ export default function App() {
           <Button 
             className="w-full" 
             variant="primary" 
-            onClick={generateBondRoast}
+            onClick={handleGenerateBondRoast}
             disabled={isLoading}
           >
             Roast This Bond
@@ -2080,8 +2098,8 @@ export default function App() {
                 variant="secondary" 
                 onClick={() => {
                   setBondRoast(null);
-                  setBondName1('');
-                  setBondName2('');
+                  if (bondName1Ref.current) bondName1Ref.current.value = '';
+                  if (bondName2Ref.current) bondName2Ref.current.value = '';
                 }}
               >
                 New Roast

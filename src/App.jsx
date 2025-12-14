@@ -362,12 +362,19 @@ export default function App() {
   const swipeTimeThreshold = 300;
 
   const handleTouchStart = useCallback((e) => {
+    // Disable swipe handling while typing in Bond Roast to avoid input interference
+    if (view === 'bondRoast') return;
+    const targetTag = e.target?.tagName?.toLowerCase();
+    if (targetTag === 'input' || targetTag === 'textarea') return;
     const touch = e.touches[0];
     swipeStart.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
-  }, []);
+  }, [view]);
 
   const handleTouchEnd = useCallback((e) => {
+    if (view === 'bondRoast') return;
     if (!swipeStart.current.x) return;
+    const targetTag = e.target?.tagName?.toLowerCase();
+    if (targetTag === 'input' || targetTag === 'textarea') return;
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - swipeStart.current.x;
     const deltaY = touch.clientY - swipeStart.current.y;
@@ -376,7 +383,7 @@ export default function App() {
     // Only handle horizontal swipes
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > swipeThreshold && deltaTime < swipeTimeThreshold) {
       // Swipe right (go back)
-      if (deltaX > 0 && (view === 'result' || view === 'altar' || view === 'sanctuary' || view === 'bondRoast')) {
+      if (deltaX > 0 && (view === 'result' || view === 'altar' || view === 'sanctuary')) {
         changeView('dashboard');
         triggerHaptic('light');
       }

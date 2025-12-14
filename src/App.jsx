@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { 
   Sparkles, 
   Ghost, 
@@ -1479,190 +1482,282 @@ export default function App() {
     </div>
   );
 
-  const SanctuaryMap = () => {
-    const mapRef = useRef(null);
-    const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
+  // Custom map marker icons for Leaflet
+  const createCustomIcon = (color, isUser = false) => {
+    const colors = {
+      purple: '#a855f7',
+      emerald: '#10b981',
+      pink: '#ec4899',
+      indigo: '#6366f1',
+      orange: '#f97316',
+      blue: '#3b82f6'
+    };
+    const iconColor = colors[color] || colors.purple;
+    
+    if (isUser) {
+      return L.divIcon({
+        className: 'custom-marker',
+        html: `
+          <div style="position: relative;">
+            <div style="
+              width: 20px;
+              height: 20px;
+              background: ${iconColor};
+              border-radius: 50%;
+              border: 3px solid white;
+              box-shadow: 0 0 20px ${iconColor}, 0 0 40px ${iconColor}40;
+              animation: pulse 2s infinite;
+            "></div>
+            <div style="
+              position: absolute;
+              inset: -10px;
+              background: ${iconColor}30;
+              border-radius: 50%;
+              animation: ping 2s infinite;
+            "></div>
+          </div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+    }
+    
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `
+        <div style="position: relative; cursor: pointer;">
+          <svg width="36" height="48" viewBox="0 0 24 32" fill="none" style="filter: drop-shadow(0 0 10px ${iconColor}80);">
+            <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${iconColor}"/>
+            <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [36, 48],
+      iconAnchor: [18, 48],
+      popupAnchor: [0, -48]
+    });
+  };
 
+  // Map recenter component
+  const MapRecenter = ({ center }) => {
+    const map = useMap();
     useEffect(() => {
-      const updateDimensions = () => {
-        if (mapRef.current) {
-          const rect = mapRef.current.getBoundingClientRect();
-          setMapDimensions({
-            width: rect.width || window.innerWidth,
-            height: rect.height || window.innerHeight
-          });
-        }
-      };
-      
-      // Initial update
-      updateDimensions();
-      
-      // Update on resize
-      window.addEventListener('resize', updateDimensions);
-      
-      // Also update when view changes
-      const timer = setTimeout(updateDimensions, 100);
-      
-      return () => {
-        window.removeEventListener('resize', updateDimensions);
-        clearTimeout(timer);
-      };
-    }, [view]);
+      if (center) {
+        map.setView([center.lat, center.lng], 14, { animate: true });
+      }
+    }, [center, map]);
+    return null;
+  };
 
-    // Convert lat/lng to pixel coordinates (simple equirectangular projection)
-    const latLngToPixel = (lat, lng, center, zoom = 12) => {
-      if (!center || !mapDimensions.width || !mapDimensions.height) return { x: mapDimensions.width / 2, y: mapDimensions.height / 2 };
-      
-      // Calculate scale based on zoom level (meters per pixel approximation)
-      const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-      const pixelsPerDegree = 111320 / metersPerPixel; // approximate meters per degree
-      
-      // Calculate offset from center
-      const deltaLng = lng - center.lng;
-      const deltaLat = lat - center.lat;
-      
-      // Convert to pixels (center of map)
-      const x = (mapDimensions.width / 2) + (deltaLng * pixelsPerDegree);
-      const y = (mapDimensions.height / 2) - (deltaLat * pixelsPerDegree); // Inverted Y axis
-      
-      return { x, y };
-    };
-
-    const getColorClass = (color) => {
-      const colors = {
-        purple: 'text-purple-400 bg-purple-500/30',
-        emerald: 'text-emerald-400 bg-emerald-500/30',
-        pink: 'text-pink-400 bg-pink-500/30',
-        indigo: 'text-indigo-400 bg-indigo-500/30',
-        orange: 'text-orange-400 bg-orange-500/30'
-      };
-      return colors[color] || colors.purple;
-    };
+  const SanctuaryMap = () => {
+    const [selectedSanctuary, setSelectedSanctuary] = useState(null);
+    
+    // Memoize icons to prevent recreation
+    const userIcon = useMemo(() => createCustomIcon('blue', true), []);
+    const sanctuaryIcons = useMemo(() => ({
+      purple: createCustomIcon('purple'),
+      emerald: createCustomIcon('emerald'),
+      pink: createCustomIcon('pink'),
+      indigo: createCustomIcon('indigo'),
+      orange: createCustomIcon('orange')
+    }), []);
 
     return (
       <div className="min-h-screen relative bg-gray-900 pb-28">
-        {/* Map Container */}
-        <div 
-          ref={mapRef}
-          className="absolute inset-0 overflow-hidden"
-          style={{ touchAction: 'pan-x pan-y' }}
-        >
-          {/* Map Background Grid */}
-          <div className="absolute inset-0 opacity-40">
-            <div className="w-full h-full bg-[radial-gradient(#444_1px,transparent_1px)] [background-size:20px_20px]"></div>
+        {/* Loading State */}
+        {isLoading && !mapCenter && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
+            <div className="text-center space-y-4">
+              <Loader2 className="w-12 h-12 mx-auto text-purple-400 animate-spin" />
+              <p className="text-white/60 font-mono text-sm">Locating your energy...</p>
+              <p className="text-white/40 font-mono text-xs">Finding nearby sanctuaries</p>
+            </div>
           </div>
-          
-          <div className="absolute inset-0 particle-bg opacity-20" />
-          
-          {isLoading && !mapCenter && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <Loader2 className="w-12 h-12 mx-auto text-purple-400 animate-spin" />
-                <p className="text-white/60 font-mono text-xs">Locating your energy...</p>
+        )}
+
+        {/* Error State */}
+        {locationError && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/80">
+            <GlassCard className="p-6 max-w-sm text-center space-y-4" intense>
+              <MapPin className="w-12 h-12 mx-auto text-red-400" />
+              <div>
+                <h3 className="text-white font-serif text-lg mb-2">Location Unavailable</h3>
+                <p className="text-white/60 text-sm leading-relaxed">{locationError}</p>
               </div>
-            </div>
-          )}
+              <Button variant="secondary" onClick={() => {
+                setLocationError(null);
+                // Try to get location again
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                      const { latitude, longitude } = position.coords;
+                      const fuzzDistance = 0.0036;
+                      const fuzzAngle = Math.random() * 2 * Math.PI;
+                      const fuzzed = {
+                        lat: latitude + (Math.cos(fuzzAngle) * fuzzDistance),
+                        lng: longitude + (Math.sin(fuzzAngle) * fuzzDistance)
+                      };
+                      setFuzzedLocation(fuzzed);
+                      setMapCenter(fuzzed);
+                      generateNearbySanctuaries(fuzzed);
+                    },
+                    () => setLocationError('Please enable location services to find nearby sanctuaries.')
+                  );
+                }
+              }}>
+                Try Again
+              </Button>
+              <Button variant="ghost" onClick={() => setView('dashboard')}>
+                Return to Loop
+              </Button>
+            </GlassCard>
+          </div>
+        )}
 
-          {locationError && (
-            <div className="absolute inset-0 flex items-center justify-center p-6">
-              <GlassCard className="p-6 max-w-sm text-center space-y-4" intense>
-                <MapPin className="w-12 h-12 mx-auto text-red-400" />
-                <div>
-                  <h3 className="text-white font-serif text-lg mb-2">Location Unavailable</h3>
-                  <p className="text-white/60 text-xs leading-relaxed">{locationError}</p>
-                </div>
-                <Button variant="secondary" onClick={() => {
-                  setLocationError(null);
-                  setView('sanctuary');
-                }}>Try Again</Button>
-              </GlassCard>
-            </div>
-          )}
-
-          {/* Render user location (fuzzed) */}
-          {fuzzedLocation && mapCenter && (
-            <div 
-              className="absolute animate-float"
-              style={{
-                left: `${latLngToPixel(fuzzedLocation.lat, fuzzedLocation.lng, mapCenter).x}px`,
-                top: `${latLngToPixel(fuzzedLocation.lat, fuzzedLocation.lng, mapCenter).y}px`,
-                transform: 'translate(-50%, -50%)'
-              }}
+        {/* Leaflet Map */}
+        {mapCenter && !locationError && (
+          <div className="absolute inset-0" style={{ zIndex: 1 }}>
+            <MapContainer
+              center={[mapCenter.lat, mapCenter.lng]}
+              zoom={14}
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={false}
+              attributionControl={false}
             >
-              <div className="relative">
-                <div className="w-4 h-4 bg-blue-400 rounded-full border-2 border-white shadow-[0_0_20px_rgba(59,130,246,0.8)] relative z-10" />
-                <div className="absolute inset-0 w-8 h-8 bg-blue-500/30 rounded-full blur-md animate-pulse" />
-              </div>
-            </div>
-          )}
+              {/* Dark themed map tiles from CartoDB */}
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              />
+              
+              {/* Recenter when location changes */}
+              <MapRecenter center={mapCenter} />
+              
+              {/* Privacy radius circle */}
+              {fuzzedLocation && (
+                <Circle
+                  center={[fuzzedLocation.lat, fuzzedLocation.lng]}
+                  radius={400}
+                  pathOptions={{
+                    color: '#8b5cf6',
+                    fillColor: '#8b5cf6',
+                    fillOpacity: 0.1,
+                    weight: 1,
+                    dashArray: '5, 10'
+                  }}
+                />
+              )}
+              
+              {/* User location marker */}
+              {fuzzedLocation && (
+                <Marker 
+                  position={[fuzzedLocation.lat, fuzzedLocation.lng]} 
+                  icon={userIcon}
+                >
+                  <Popup className="custom-popup">
+                    <div className="text-center p-2">
+                      <p className="font-semibold text-purple-600">Your Location</p>
+                      <p className="text-xs text-gray-500">Ghost Mode: ~400m offset</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+              
+              {/* Sanctuary markers */}
+              {(nearbySanctuaries || []).map((sanctuary) => (
+                <Marker
+                  key={sanctuary.id}
+                  position={[sanctuary.lat, sanctuary.lng]}
+                  icon={sanctuaryIcons[sanctuary.color] || sanctuaryIcons.purple}
+                  eventHandlers={{
+                    click: () => {
+                      setSelectedSanctuary(sanctuary);
+                      triggerHaptic('light');
+                    }
+                  }}
+                >
+                  <Popup className="custom-popup">
+                    <div className="p-2 min-w-[150px]">
+                      <p className="font-semibold text-purple-600">{sanctuary.name}</p>
+                      <p className="text-xs text-gray-500 mt-1">{sanctuary.distance}km away</p>
+                      <p className="text-xs text-gray-400 mt-2 italic">{sanctuary.vibe}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          </div>
+        )}
 
-          {/* Render nearby sanctuaries */}
-          {(nearbySanctuaries || []).map((sanctuary, index) => {
-            const pixel = latLngToPixel(sanctuary.lat, sanctuary.lng, mapCenter);
-            return (
-              <div
-                key={sanctuary.id}
-                className="absolute animate-float cursor-pointer group"
-                style={{
-                  left: `${pixel.x}px`,
-                  top: `${pixel.y}px`,
-                  transform: 'translate(-50%, -50%)',
-                  animationDelay: `${index * 0.2}s`
-                }}
-                onClick={() => {
-                  addNotification(`${sanctuary.name} • ${sanctuary.distance}km away`, 'info');
-                }}
-              >
-                <div className="relative">
-                  <MapPin className={`w-10 h-10 ${getColorClass(sanctuary.color).split(' ')[0]} drop-shadow-[0_0_15px_currentColor] relative z-10 group-hover:scale-110 transition-transform`} />
-                  <div className={`absolute inset-0 w-10 h-10 ${getColorClass(sanctuary.color).split(' ')[1]} rounded-full blur-xl animate-pulse`} />
-                  {/* Tooltip on hover */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                    <GlassCard className="px-3 py-1 text-xs" intense>
-                      <div className="text-white font-serif">{sanctuary.name}</div>
-                      <div className="text-white/60 font-mono text-xs">{sanctuary.distance}km</div>
-                    </GlassCard>
-                  </div>
+        {/* Info Panel Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 pb-32 bg-gradient-to-t from-black via-black/95 to-transparent space-y-3" style={{ zIndex: 10 }}>
+          {/* Selected sanctuary info */}
+          {selectedSanctuary && (
+            <GlassCard className="p-4 space-y-2 animate-in slide-in-from-bottom-10" intense>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-white font-serif text-lg">{selectedSanctuary.name}</h3>
+                  <p className="text-purple-400 font-mono text-xs">{selectedSanctuary.distance}km • {selectedSanctuary.members} members</p>
                 </div>
+                <button 
+                  onClick={() => setSelectedSanctuary(null)}
+                  className="text-white/40 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Info Panel */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 pb-32 bg-gradient-to-t from-black via-black/95 to-transparent space-y-4">
-          {mapCenter && (
-            <GlassCard className="p-4 flex items-center gap-3" intense>
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-              <div className="flex-1">
-                <p className="text-white/80 font-mono text-xs">
-                  {fuzzedLocation ? 'Your fuzzed location' : 'Approximate area'}
+              <p className="text-white/60 text-sm italic">"{selectedSanctuary.vibe}"</p>
+              <Button className="w-full" variant="primary" size="sm" onClick={() => {
+                addNotification(`Joining ${selectedSanctuary.name}...`, 'info');
+                setSelectedSanctuary(null);
+              }}>
+                Request to Join
+              </Button>
+            </GlassCard>
+          )}
+          
+          {/* Location info */}
+          {mapCenter && !selectedSanctuary && (
+            <GlassCard className="p-3 flex items-center gap-3" intense>
+              <div className="relative">
+                <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse" />
+                <div className="absolute inset-0 w-3 h-3 bg-blue-400 rounded-full animate-ping opacity-50" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white/80 font-mono text-xs">Your Mystic Location</p>
+                <p className="text-white/40 font-mono text-xs truncate">
+                  {mapCenter.lat.toFixed(4)}°, {mapCenter.lng.toFixed(4)}°
                 </p>
-                <p className="text-white/50 font-mono text-xs">
-                  {mapCenter.lat.toFixed(4)}, {mapCenter.lng.toFixed(4)}
-                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-purple-400 font-mono text-sm font-bold">{(nearbySanctuaries?.length || 0)}</p>
+                <p className="text-white/40 font-mono text-xs">nearby</p>
               </div>
             </GlassCard>
           )}
           
-          <GlassCard className="p-5 flex items-start gap-4" intense>
-            <div className="p-3 bg-emerald-500/20 rounded-lg shrink-0">
-              <Shield className="w-6 h-6 text-emerald-400" />
+          {/* Ghost Mode info */}
+          <GlassCard className="p-4 flex items-start gap-3" intense>
+            <div className="p-2 bg-emerald-500/20 rounded-lg shrink-0">
+              <Shield className="w-5 h-5 text-emerald-400" />
             </div>
-            <div>
-              <h3 className="text-white font-serif text-lg mb-1">Ghost Mode Active</h3>
-              <p className="text-white/60 text-xs leading-relaxed">
-                Your exact location is fuzzed by 400m. {(nearbySanctuaries?.length || 0)} nearby sanctuaries detected.
+            <div className="flex-1">
+              <h3 className="text-white font-serif text-base mb-0.5">Ghost Mode Active</h3>
+              <p className="text-white/50 text-xs leading-relaxed">
+                Your exact location is hidden. Others see you within a ~400m radius.
               </p>
             </div>
           </GlassCard>
           
-          <div className="flex gap-3">
+          {/* Action buttons */}
+          <div className="flex gap-2">
             <Button 
               className="flex-1" 
-              variant="secondary" 
+              variant="secondary"
+              size="sm"
               onClick={() => {
-                if (navigator.geolocation && mapCenter) {
+                if (navigator.geolocation) {
+                  setIsLoading(true);
                   navigator.geolocation.getCurrentPosition(
                     (position) => {
                       const { latitude, longitude } = position.coords;
@@ -1676,20 +1771,63 @@ export default function App() {
                       setMapCenter(newFuzzed);
                       generateNearbySanctuaries(newFuzzed);
                       addNotification('Location refreshed', 'success');
+                      setIsLoading(false);
                     },
-                    () => addNotification('Failed to refresh location', 'error')
+                    () => {
+                      addNotification('Failed to refresh location', 'error');
+                      setIsLoading(false);
+                    }
                   );
                 }
               }}
-              disabled={!mapCenter}
+              disabled={!mapCenter || isLoading}
             >
-              Refresh
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Refresh'}
             </Button>
-            <Button className="flex-1" variant="secondary" onClick={() => setView('dashboard')}>
-              Exit Sanctuary
+            <Button className="flex-1" variant="secondary" size="sm" onClick={() => setView('dashboard')}>
+              Exit Map
             </Button>
           </div>
         </div>
+        
+        {/* Custom CSS for Leaflet popups */}
+        <style>{`
+          .leaflet-popup-content-wrapper {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+          }
+          .leaflet-popup-content {
+            margin: 8px;
+            color: white;
+          }
+          .leaflet-popup-tip {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+          }
+          .leaflet-popup-close-button {
+            color: rgba(255, 255, 255, 0.6) !important;
+          }
+          .custom-marker {
+            background: transparent !important;
+            border: none !important;
+          }
+          @keyframes ping {
+            75%, 100% {
+              transform: scale(2);
+              opacity: 0;
+            }
+          }
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 1;
+            }
+            50% {
+              opacity: 0.7;
+            }
+          }
+        `}</style>
       </div>
     );
   };
@@ -2103,7 +2241,6 @@ export default function App() {
         </div>
       )}
 
-      {view === 'welcome' && <WelcomeScreen />}
       {view === 'welcome' && <WelcomeScreen />}
       {view === 'mood' && <MoodCompass />}
       {view === 'dashboard' && <Dashboard />}
